@@ -280,3 +280,34 @@ from one implementation, instead of reimplementing (and drifting) in Python + Ko
 
 Remaining for Phase 1: apply the same change to the mobile backend's anki (25.09.2)
 and rebuild the rsdroid .aar + APK so the queue change ships to the phone too.
+
+---
+
+## 2026-06-30 — Phase 1 (mobile): points-at-stake shipped to Android
+
+Applied the identical change to the mobile backend anki (`anki-mcat-mobile/
+Anki-Android-Backend/anki`, v25.09.2). Two version deltas vs desktop:
+- 25.09.2 has **no** `ReviewCardOrder::RelativeOverdueness` (enum max = 11) and its
+  `review_order_sql` uses `build_retrievability_clauses(fsrs, timing, SqlSortOrder)`.
+  So the new SQL arm gathers via `build_retrievability_clauses(.., Ascending)`
+  (most-forgettable first) instead of the desktop's RelativeOverdueness subclause.
+- The simulator's fallback arm is `Added | ReverseAdded => None` (no
+  RelativeOverdueness), so the new arm slots in before it.
+Used proto value **13** to match desktop, so `reviewOrder = 13` means points-at-stake
+on both platforms (mobile leaves 12 unused — proto allows the gap). The `speedrun/`
+ranking module was copied over verbatim.
+
+NOTE: host `cargo check` on the mobile tree fails in `rslib/src/sync/*` (async-
+compression/tokio trait drift under host rust 1.92) — pre-existing and unrelated to
+our code; the Android build pins rust 1.89.0 + the locked deps and builds clean.
+
+Proof on phone:
+- `./build.sh` (backend) → **BUILD SUCCESSFUL**; rslib cross-compiled for arm64.
+- `grep -a speedrunTopicPoints librsdroid.so` → found (our Phase 1 config key is in
+  the native lib), Phase 0 ping string still present.
+- Rebuilt APK (`assembleFullDebug`), `adb install -r` the arm64 build, launched via
+  `IntentHandler`; DeckPicker logged `SPEEDRUN speedrun: scheduler engine alive
+  (anki 25.09.2)` — the rebuilt engine loads and runs on the emulator.
+
+**Phase 1 core (the real engine change) is DONE on desktop AND mobile.** Next:
+MCAT review loop on a real deck + the honest memory model (range + give-up rule).

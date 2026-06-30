@@ -18,6 +18,15 @@ Goal: keep this list short. Prefer new modules + thin registration hooks.
 | `rslib/src/scheduler/fsrs/simulator.rs` | Added the new `ReviewCardOrder` arm to the simulator's priority fn (urgency*weakness). | low | One match arm; forced by exhaustiveness. |
 
 New files (all ours, not upstream edits): `rslib/src/speedrun/{mod,queue}.rs` (ranking logic + 3 unit tests), `pylib/tests/test_speedrun.py` (1 Python test).
+
+### Phase 1 — mobile (separate repo: `anki-mcat-mobile/Anki-Android-Backend/anki`, v25.09.2)
+Same change mirrored into the mobile backend's anki submodule (not tracked by this repo):
+- `proto/anki/deck_config.proto`: `REVIEW_CARD_ORDER_SPEEDRUN_POINTS_AT_STAKE = 13` (matches desktop).
+- `rslib/src/lib.rs`: `pub mod speedrun;`.
+- `rslib/src/speedrun/{mod,queue}.rs`: copied verbatim from desktop.
+- `rslib/src/storage/card/mod.rs`: new arm uses `build_retrievability_clauses(fsrs, timing, SqlSortOrder::Ascending)` (25.09.2 lacks the RelativeOverdueness subclause).
+- `rslib/src/scheduler/fsrs/simulator.rs`: new arm (urgency*weakness) before `Added | ReverseAdded => None`.
+- `rslib/src/scheduler/queue/builder/mod.rs`: identical `build_queues` hook + `speedrun_reorder_reviews`.
 | `.gitignore` | Added `mobile/` so the nested AnkiDroid checkout isn't tracked by the fork. | low | Now stale: mobile checkouts were MOVED to `../anki-mcat-mobile/` (outside this repo) to avoid a yarn `.yarnrc.yml` config-bleed conflict (see JOURNAL 2026-06-30 Stage B). Harmless. |
 
 ## Mobile checkouts (separate repos, in `/Users/mohamedshawgi/anki-mcat-mobile/`)

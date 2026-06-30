@@ -90,13 +90,17 @@ Build an MCAT prep app on a fork of Anki:
       `GeneratedBackend.speedrunPing()` Kotlin binding exists, and a tagged hook in
       `DeckPicker` shows it as a snackbar + `SPEEDRUN` logcat line. **PHASE 0 DONE.**
 
-### Phase 1 — Wednesday (core, NO AI)
-- [~] Real Rust change: points-at-stake/weakness-weighted queue. DESKTOP DONE:
-      new `ReviewCardOrder::SpeedrunPointsAtStake` (proto enum, additive) + pure
-      ranking module `rslib/src/speedrun/queue.rs` + reorder wired into the queue
-      builder. 5 Rust tests (3 pure unit + 2 queue-level) + 1 Python test, all
-      green; existing queue tests still pass (undo-safe, opt-in, default behavior
-      unchanged). Remaining: ship to mobile (rebuild rsdroid .aar at 25.09.2 base).
+- [x] Real Rust change: points-at-stake/weakness-weighted queue. **DESKTOP +
+      MOBILE DONE.** New `ReviewCardOrder::SpeedrunPointsAtStake` (proto enum,
+      additive) + pure ranking module `rslib/src/speedrun/queue.rs` + reorder
+      wired into the queue builder. 5 Rust tests (3 pure unit + 2 queue-level) +
+      1 Python test, all green; existing queue tests still pass (undo-safe,
+      opt-in, default behavior unchanged). Same change applied to mobile anki
+      25.09.2 (SQL/sim arms adapted to that version); rsdroid `.aar` rebuilt,
+      `speedrunTopicPoints` verified in `librsdroid.so`, APK reinstalled and the
+      engine confirmed running on the emulator.
+
+### Phase 1 — Wednesday (core, NO AI) — remaining
 - [ ] MCAT review loop on a real deck.
 - [ ] Memory model w/ honest display: range + give-up rule.
 - [ ] Desktop installer runs on a clean machine.
