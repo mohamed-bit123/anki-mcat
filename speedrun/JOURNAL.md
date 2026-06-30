@@ -424,3 +424,48 @@ the prove-yourself-wrong comparison) and the runner shows each question's priori
 **Proof (headless):** seed 12 → all unseen at priority 0.40 → master the top
 question (4 correct) → it drops from rank 1 to **last (11/11)** and a fresh topic
 surfaces. 23 Rust speedrun tests green; `just build` green.
+
+---
+
+## 2026-06-30 — Phase 2 (mobile): full parity on Android
+
+Goal from the user: "make the mobile version just like the desktop one." Done —
+all of Phase 2 (the three scores + practice runner + weakness-weighted ordering)
+now runs on AnkiDroid through the same shared engine.
+
+**Engine port (backend `anki` submodule @ 25.09.2):** copied `speedrun/{mod,queue,
+scores,content}.rs` **byte-identical** to desktop (verified by diff; the Phase-1
+`queue.rs` was already identical apart from the Phase-2 additions). Added the three
+RPCs (`SpeedrunRecordAttempt`, `SpeedrunScores`, `SpeedrunNextQuestions`) + messages
+to `scheduler.proto` and their impls to `scheduler/service/mod.rs`. All Phase-2 APIs
+(`search_cards`, `validate_custom_data`, `update_cards_maybe_undoable`,
+`get_config_default`, `human_name`, …) exist in 25.09.2, so no adaptation was needed
+(unlike Phase 1's `review_order_sql`). `./build.sh` → **BUILD SUCCESSFUL**; the
+generated `GeneratedBackend.kt` now exposes `speedrunRecordAttempt(cardId, correct)`,
+`speedrunScores(): SpeedrunScoresResponse`, and `speedrunNextQuestions():
+List<…Question>` (single-field response auto-unwrapped, exactly like Python).
+
+**AnkiDroid UI — new `SpeedrunActivity.kt`** (programmatic views, mirrors
+`qt/aqt/speedrun.py`): three honest score cards, a "Weakness-weighted order" toggle,
+seed button, and the question runner (stem + 4 options → grade → record attempt →
+explanation → refresh scores). Creates the same "MCAT Practice Question" notetype and
+the same 12 hand-authored seed questions in per-topic subdecks via the libanki
+Kotlin API (`notetypes.new/newField/addField/newTemplate/add_template/add`,
+`col.newNote/addNote`, `decks.id`, `note.setItem/addTag`). Reached via a new
+"MCAT Speedrun" item in the DeckPicker overflow menu (`onOptionsItemSelected` →
+`startActivity`), registered in `AndroidManifest.xml`.
+
+**Proof (on the running emulator, driven via adb/uiautomator):**
+- Opened the screen → 3 scores all **withheld with the engine's honest reasons**
+  ("need 20 studied cards", "need 10 graded questions", "no applied evidence yet").
+- Seeded 12 → started a set → first question shows **`priority 0.40`, Biochemistry
+  first — identical to the desktop headless ranking**.
+- Answered a question → feedback "Correct." + explanation; Performance went 0 → 1.
+- Answered the full set (12 attempts) → **Performance flips to known: `16/100,
+  7 topics`** (2/12 correct since I tapped "A" each time) and **Readiness projects
+  `477`, range `472–492`, low confidence, "not yet calibrated"** — while **Memory
+  stays withheld** (no studied flashcards). The honesty rules hold on-device.
+
+Mobile now matches desktop. The same engine change + scores + ordering + honesty
+rules ship on BOTH platforms. (APK: `AnkiDroid-full-arm64-v8a-debug.apk`, installed
+on AVD `mcat`; entry point Tools-style overflow → "MCAT Speedrun".)

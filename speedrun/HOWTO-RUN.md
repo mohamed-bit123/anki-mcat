@@ -71,6 +71,17 @@ adb logcat -d | grep SPEEDRUN
 (The string comes from our `speedrun_ping()` in `rslib`, compiled into
 `librsdroid.so`, called via the generated `Backend.speedrunPing()` binding.)
 
+### The full MCAT Speedrun screen on mobile (Phase 2 parity)
+On the deck list, open the **overflow menu (⋮)** → **"MCAT Speedrun"**. This opens
+`SpeedrunActivity`, the phone twin of the desktop Tools → MCAT Speedrun panel:
+- Three honest score cards (Memory / Performance / Readiness) straight from the
+  shared engine (`speedrunScores`); withheld scores show the engine's reason.
+- "Seed demo questions" adds the 12-question starter bank (per-topic subdecks).
+- "Start practice set" pulls the weakness-weighted order (`speedrunNextQuestions`),
+  shows the priority, grades answers, logs them (`speedrunRecordAttempt`), and
+  refreshes the scores after each answer.
+Same engine, same scores, same ordering, same honesty rules as desktop.
+
 4. Rebuild the APK after Android code changes:
 ```bash
 cd /Users/mohamedshawgi/anki-mcat-mobile/Anki-Android

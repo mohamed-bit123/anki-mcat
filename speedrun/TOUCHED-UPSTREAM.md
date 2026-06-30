@@ -41,6 +41,19 @@ Not part of this git repo, but tracked here for the merge-difficulty story.
 | `Anki-Android` `AnkiDroid/src/main/java/com/ichi2/anki/DeckPicker.kt` | Tagged hook in `onFinishedStartup()`: snackbar + `SPEEDRUN` log of `getBackend().speedrunPing()` — makes the engine change visible on the phone. | low | ~6 lines, clearly commented `// Speedrun (MCAT fork)`. Demo/proof only; remove or gate behind debug later. |
 | `Anki-Android` `local.properties` | `local_backend=true` so AnkiDroid loads our locally-built `.aar` instead of the Maven one. | n/a | Untracked dev config, not committed upstream. |
 
+### Phase 2 — mobile (full parity)
+Backend `anki` submodule (25.09.2): same additive edits as desktop —
+`proto/anki/scheduler.proto` (+RecordAttempt/Scores/NextQuestions RPCs & messages),
+`rslib/src/scheduler/service/mod.rs` (+3 impls). New files copied byte-identical from
+desktop: `rslib/src/speedrun/{scores,content}.rs` and the Phase-2 additions to
+`queue.rs`/`mod.rs`. AnkiDroid app edits (`Anki-Android`):
+| Repo / file | Why we touched it | Merge risk | Notes |
+| --- | --- | --- | --- |
+| `AnkiDroid/.../SpeedrunActivity.kt` (NEW) | The whole mobile Speedrun screen (score panel + question runner). All new code. | none | Not an upstream file. |
+| `AnkiDroid/.../DeckPicker.kt` | One `when` arm in `onOptionsItemSelected` launching `SpeedrunActivity` (plus the Phase-0 ping hook). | low | ~5 additive lines. |
+| `AnkiDroid/src/main/AndroidManifest.xml` | Register `SpeedrunActivity`. | low | One additive `<activity>` block. |
+| `AnkiDroid/src/main/res/menu/deck_picker.xml` + `menu-xlarge/deck_picker.xml` | Add the "MCAT Speedrun" overflow item. | low | One additive `<item>` each. |
+
 ## Merge-difficulty summary (update as the list grows)
 
 Desktop: additive edits at the proto service + its Rust impl (the unavoidable seam
