@@ -9,3 +9,4 @@
 //! [`queue`].
 
 pub mod queue;
+pub mod scores;
