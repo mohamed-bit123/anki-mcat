@@ -56,6 +56,21 @@ impl crate::services::SchedulerService for Collection {
         .into())
     }
 
+    /// Speedrun (MCAT fork): log one graded answer to an application question.
+    fn speedrun_record_attempt(
+        &mut self,
+        input: scheduler::SpeedrunRecordAttemptRequest,
+    ) -> Result<()> {
+        self.speedrun_record_attempt(input.card_id.into(), input.correct)?;
+        Ok(())
+    }
+
+    /// Speedrun (MCAT fork): compute the three scores from the collection.
+    fn speedrun_scores(&mut self) -> Result<scheduler::SpeedrunScoresResponse> {
+        let scores = self.speedrun_compute_scores()?;
+        Ok((&scores).into())
+    }
+
     /// Message rendering only, for old graphs.
     fn studied_today_message(
         &mut self,

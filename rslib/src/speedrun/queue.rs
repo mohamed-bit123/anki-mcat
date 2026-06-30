@@ -67,7 +67,7 @@ pub(crate) fn review_priority_input_for_card(
     }
 }
 
-fn card_retrievability(card: &Card, timing: &SchedTimingToday) -> f32 {
+pub(crate) fn card_retrievability(card: &Card, timing: &SchedTimingToday) -> f32 {
     if let Some(state) = card.memory_state {
         // Real FSRS forgetting curve.
         let elapsed_seconds = card.seconds_since_last_review(timing).unwrap_or_default();

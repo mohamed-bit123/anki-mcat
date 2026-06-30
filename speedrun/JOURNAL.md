@@ -311,3 +311,45 @@ Proof on phone:
 
 **Phase 1 core (the real engine change) is DONE on desktop AND mobile.** Next:
 MCAT review loop on a real deck + the honest memory model (range + give-up rule).
+
+---
+
+## 2026-06-30 — Phase 2 (desktop): the three scores + practice-question loop
+
+Built the three deliberately-separate, honest scores in the engine, plus the
+application-question plumbing that feeds them.
+
+**Opinion logged (practice tests vs flashcards):** they're complementary, not
+alternatives. Flashcards = Memory (retrieval strength of facts); application
+questions = Performance (transfer). Recall ≠ transfer, and the MCAT is an
+application exam, so applied questions are *required* to (a) measure Performance
+and (b) honestly calibrate Readiness. Readiness is therefore driven by applied
+Performance, with Memory as a ceiling factor — memorization alone never yields a
+readiness number.
+
+**`rslib/src/speedrun/scores.rs` (pure, 10 tests):**
+- Memory = topic-weighted mean FSRS retrievability over *studied* cards + coverage.
+- Performance = recency- and topic-weighted accuracy on application questions.
+- Readiness = projected MCAT 472–528 via a documented pct→score map, range from a
+  Wilson interval (widens with less data) inflated by calibration error, plus a
+  confidence level and calibration note.
+- Honesty rules enforced in-engine: give-up below min evidence; **Readiness
+  refused without Performance**; range widens w/ less data / no calibration; weak
+  Memory caps Readiness.
+
+**`rslib/src/speedrun/content.rs` (3 tests):** application questions = notes tagged
+`mcat-question`; each graded answer is appended to the question card's
+`custom_data` (`spA: [[day, correct]]`, capped 50, syncs for free). Gathering turns
+the live collection into score inputs (flashcards→Memory, tagged questions→
+Performance; topic = deck, points via the Phase 1 `speedrunTopicPoints` config;
+calibration from `speedrunCalibration` config).
+
+**Proto seam:** added `SpeedrunRecordAttempt` + `SpeedrunScores` RPCs (+ a
+`SpeedrunScoresResponse` with `known`/`reason` fields so withheld scores stay
+explicit). Verified end-to-end in Python (`pylib/tests/test_speedrun_scores.py`):
+build flashcards + tagged questions, log attempts via the backend, read all three
+scores; readiness is correctly refused when only flashcards exist.
+
+18 Rust speedrun tests + 3 Python tests green. Remaining: mirror Phase 2 onto the
+mobile backend, and build the UI — a question runner (take a practice set) and a
+scores panel — on desktop (Svelte) and AnkiDroid.

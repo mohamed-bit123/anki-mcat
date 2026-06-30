@@ -8,5 +8,6 @@
 //! engine change is the weakness-weighted "points at stake" review ordering in
 //! [`queue`].
 
+pub mod content;
 pub mod queue;
 pub mod scores;
