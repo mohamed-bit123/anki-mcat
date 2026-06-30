@@ -353,3 +353,40 @@ scores; readiness is correctly refused when only flashcards exist.
 18 Rust speedrun tests + 3 Python tests green. Remaining: mirror Phase 2 onto the
 mobile backend, and build the UI — a question runner (take a practice set) and a
 scores panel — on desktop (Svelte) and AnkiDroid.
+
+---
+
+## 2026-06-30 — Phase 2 (desktop UI): question runner + score panel
+
+Added the desktop UI in `qt/aqt/speedrun.py` (PyQt, opened via **Tools → MCAT
+Speedrun…**). Chose a PyQt dialog over a Svelte page: it runs in the real desktop
+app today, talks straight to the same `SpeedrunScores`/`SpeedrunRecordAttempt`
+RPCs, and avoids the ts build round-trip I can't visually verify. The Svelte
+version can wrap the same RPCs later.
+
+**What it does:**
+- Three live score cards (Memory / Performance / Readiness) rendered *honestly* —
+  when the engine withholds a score it shows `—` plus the engine's `reason`, not a
+  fake number. Readiness shows projected + range (472–528) + confidence +
+  calibration note.
+- A practice runner: "Start practice set" loads `tag:mcat-question` notes, shows
+  the stem + 4 options, grades the pick, records the attempt via the backend, shows
+  the explanation, and refreshes all three scores after every answer.
+
+**Notetype + seed:** `ensure_notetype()` creates an "MCAT Practice Question"
+notetype (Topic/Stem/A–D/Answer/Explanation); `seed_demo_questions()` adds 12
+original, hand-authored MCAT-style discretes so the loop is demoable on an empty
+collection. Validated headless (offscreen Qt): seed 12 → scores withheld → 12
+answers → Performance known (12 attempts), Readiness 522 (range 509.5–528, low
+confidence, "not yet calibrated"). `just build` green; both edited files
+py-compile clean.
+
+**Question-bank sourcing (the honest plan):** real AAMC/UWorld/Kaplan banks are
+copyrighted — we will NOT scrape or redistribute them. The bank comes from three
+legitimate sources: (1) **user import** (the questions are plain notes of our
+notetype, so standard Anki CSV/apkg import works, and users can bring content they
+own); (2) **AI generation grounded in open-licensed sources** (OpenStax Bio/Chem/
+Physics/Psych, CC-BY) with stored citations + a held-out eval — this is the
+Phase 3 AI feature and the scalable source; (3) the small hand-authored seed set
+for demos. All three produce identical tagged notes, so the runner + scoring are
+source-agnostic.

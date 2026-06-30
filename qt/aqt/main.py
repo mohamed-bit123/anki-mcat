@@ -1331,6 +1331,11 @@ title="{}" {}>{}</button>""".format(
             parent=self, include_prerelease=version.is_prerelease, on_success=on_success
         ).with_progress().run_in_background()
 
+    def on_speedrun(self) -> None:
+        import aqt.speedrun
+
+        aqt.speedrun.show_speedrun(self)
+
     def onNoteTypes(self) -> None:
         import aqt.models
 
@@ -1447,6 +1452,11 @@ title="{}" {}>{}</button>""".format(
         qconnect(m.actionNoteTypes.triggered, self.onNoteTypes)
         qconnect(m.action_check_for_updates.triggered, self.on_check_for_updates)
         qconnect(m.actionPreferences.triggered, self.onPrefs)
+
+        # Speedrun (MCAT fork): practice-question runner + three-score panel.
+        speedrun_action = QAction("MCAT Speedrun…", self)
+        m.menuTools.addAction(speedrun_action)
+        qconnect(speedrun_action.triggered, self.on_speedrun)
 
         # View
         qconnect(
