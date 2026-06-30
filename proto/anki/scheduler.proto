@@ -64,6 +64,16 @@ service SchedulerService {
   // The number of days the calculated interval was fuzzed by on the previous
   // review (if any). Utilized by the FSRS add-on.
   rpc FuzzDelta(FuzzDeltaRequest) returns (FuzzDeltaResponse);
+  // Speedrun (MCAT fork): liveness probe used to validate that a change to the
+  // Rust engine reaches every client (desktop + mobile) through the proto seam.
+  rpc SpeedrunPing(generic.Empty) returns (generic.String);
+  // Speedrun (MCAT fork): log one graded answer to an application question.
+  rpc SpeedrunRecordAttempt(SpeedrunRecordAttemptRequest) returns (generic.Empty);
+  // Speedrun (MCAT fork): compute the three scores (Memory/Performance/Readiness).
+  rpc SpeedrunScores(generic.Empty) returns (SpeedrunScoresResponse);
+  // Speedrun (MCAT fork): application-question ids in weakness-weighted order
+  // (the question analogue of the points-at-stake review queue).
+  rpc SpeedrunNextQuestions(generic.Empty) returns (SpeedrunNextQuestionsResponse);
 }
 
 // Implicitly includes any of the above methods that are not listed in the
@@ -75,6 +85,59 @@ service BackendSchedulerService {
   rpc FsrsBenchmark(FsrsBenchmarkRequest) returns (FsrsBenchmarkResponse);
   // Used for exporting revlogs for algorithm research.
   rpc ExportDataset(ExportDatasetRequest) returns (generic.Empty);
+}
+
+// Speedrun (MCAT fork): one graded answer to a tagged application question.
+message SpeedrunRecordAttemptRequest {
+  int64 card_id = 1;
+  bool correct = 2;
+}
+
+// Speedrun (MCAT fork): the three deliberately-separate scores. `known` is
+// false when a score is withheld by the give-up rule; `reason` then explains
+// why. Readiness additionally always carries a calibration note.
+message SpeedrunScoresResponse {
+  message Memory {
+    bool known = 1;
+    float value = 2;
+    uint32 studied_cards = 3;
+    uint32 total_cards = 4;
+    float topic_coverage = 5;
+    string reason = 6;
+  }
+  message Performance {
+    bool known = 1;
+    float value = 2;
+    uint32 attempts = 3;
+    float effective_attempts = 4;
+    uint32 topics_covered = 5;
+    string reason = 6;
+  }
+  message Readiness {
+    bool known = 1;
+    float projected = 2;
+    float low = 3;
+    float high = 4;
+    string confidence = 5;
+    string reason = 6;
+    string calibration_note = 7;
+  }
+  Memory memory = 1;
+  Performance performance = 2;
+  Readiness readiness = 3;
+}
+
+// Speedrun (MCAT fork): application-question card ids ordered by the
+// points-at-stake weakness weighting (highest priority first). Each entry
+// carries its priority and topic so the UI can show *why* a question surfaced.
+message SpeedrunNextQuestionsResponse {
+  message Question {
+    int64 card_id = 1;
+    float priority = 2;
+    string topic = 3;
+    uint32 attempts = 4;
+  }
+  repeated Question questions = 1;
 }
 
 message SchedulingState {

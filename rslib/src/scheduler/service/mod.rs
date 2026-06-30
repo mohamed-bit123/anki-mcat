@@ -45,6 +45,49 @@ impl crate::services::SchedulerService for Collection {
         self.studied_today().map(Into::into)
     }
 
+    /// Speedrun (MCAT fork): liveness probe. Returns a static string from the
+    /// Rust engine so we can confirm an engine change reaches every client
+    /// (desktop now, mobile here) through the shared proto seam.
+    fn speedrun_ping(&mut self) -> Result<generic::String> {
+        Ok(format!(
+            "speedrun: scheduler engine alive (anki {})",
+            crate::version::version()
+        )
+        .into())
+    }
+
+    /// Speedrun (MCAT fork): log one graded answer to an application question.
+    fn speedrun_record_attempt(
+        &mut self,
+        input: scheduler::SpeedrunRecordAttemptRequest,
+    ) -> Result<()> {
+        self.speedrun_record_attempt(input.card_id.into(), input.correct)?;
+        Ok(())
+    }
+
+    /// Speedrun (MCAT fork): compute the three scores from the collection.
+    fn speedrun_scores(&mut self) -> Result<scheduler::SpeedrunScoresResponse> {
+        let scores = self.speedrun_compute_scores()?;
+        Ok((&scores).into())
+    }
+
+    /// Speedrun (MCAT fork): application-question ids in weakness-weighted order.
+    fn speedrun_next_questions(&mut self) -> Result<scheduler::SpeedrunNextQuestionsResponse> {
+        use scheduler::speedrun_next_questions_response as pb;
+        let ranked = self.speedrun_next_questions()?;
+        Ok(scheduler::SpeedrunNextQuestionsResponse {
+            questions: ranked
+                .into_iter()
+                .map(|q| pb::Question {
+                    card_id: q.card_id.0,
+                    priority: q.priority,
+                    topic: q.topic,
+                    attempts: q.attempts,
+                })
+                .collect(),
+        })
+    }
+
     /// Message rendering only, for old graphs.
     fn studied_today_message(
         &mut self,
