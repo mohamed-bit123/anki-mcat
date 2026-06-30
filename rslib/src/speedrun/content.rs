@@ -26,6 +26,9 @@ use crate::search::Node;
 use crate::search::SearchNode;
 use crate::search::SortMode;
 use crate::speedrun::queue::card_retrievability;
+use crate::speedrun::queue::question_priority;
+use crate::speedrun::queue::smoothed_accuracy;
+use crate::speedrun::queue::QuestionPriorityInput;
 use crate::speedrun::queue::DEFAULT_TOPIC_POINTS;
 use crate::speedrun::queue::TOPIC_POINTS_CONFIG_KEY;
 use crate::speedrun::scores::memory_score;
@@ -53,6 +56,15 @@ pub struct SpeedrunScores {
     pub memory: MemoryScore,
     pub performance: PerformanceScore,
     pub readiness: ReadinessScore,
+}
+
+/// One application question with its computed weakness-weighted priority.
+pub struct RankedQuestion {
+    pub card_id: CardId,
+    pub priority: f32,
+    /// The question's topic (deck human name), for "why this surfaced" display.
+    pub topic: String,
+    pub attempts: u32,
 }
 
 impl From<&SpeedrunScores> for anki_proto::scheduler::SpeedrunScoresResponse {
@@ -128,6 +140,88 @@ impl Collection {
         card.validate_custom_data()?;
         self.update_cards_maybe_undoable(vec![card], true)?;
         Ok(())
+    }
+
+    /// Orders application questions by the points-at-stake weakness weighting
+    /// (highest priority first). This is the question analogue of the Phase 1
+    /// review queue: flashcards rank on FSRS state, questions rank on applied
+    /// accuracy, both scaled by topic points. Topic weakness is smoothed across
+    /// all questions in the topic; per-question need favors unseen, recently
+    /// missed, and stale questions.
+    pub(crate) fn speedrun_next_questions(&mut self) -> Result<Vec<RankedQuestion>> {
+        let timing = self.timing_today()?;
+        let today = timing.days_elapsed as i64;
+        let topic_points_cfg: HashMap<String, f32> =
+            self.get_config_default(TOPIC_POINTS_CONFIG_KEY);
+        let mut deck_names: HashMap<DeckId, String> = HashMap::new();
+
+        let ids = self.search_cards(SearchNode::from_tag_name(QUESTION_TAG), SortMode::NoOrder)?;
+
+        struct Row {
+            card_id: CardId,
+            deck_id: DeckId,
+            topic_points: f32,
+            attempts: Vec<(i64, bool)>,
+        }
+        let mut rows = Vec::with_capacity(ids.len());
+        let mut topic_correct: HashMap<DeckId, f32> = HashMap::new();
+        let mut topic_total: HashMap<DeckId, f32> = HashMap::new();
+        for id in ids {
+            let card = match self.storage.get_card(id)? {
+                Some(c) => c,
+                None => continue,
+            };
+            let points =
+                self.topic_points_for_deck(card.deck_id, &topic_points_cfg, &mut deck_names)?;
+            let attempts = parse_attempts(&card.custom_data);
+            for (_, correct) in &attempts {
+                *topic_total.entry(card.deck_id).or_default() += 1.0;
+                if *correct {
+                    *topic_correct.entry(card.deck_id).or_default() += 1.0;
+                }
+            }
+            rows.push(Row {
+                card_id: card.id,
+                deck_id: card.deck_id,
+                topic_points: points,
+                attempts,
+            });
+        }
+
+        let mut ranked: Vec<RankedQuestion> = rows
+            .into_iter()
+            .map(|r| {
+                let correct = topic_correct.get(&r.deck_id).copied().unwrap_or(0.0);
+                let total = topic_total.get(&r.deck_id).copied().unwrap_or(0.0);
+                let topic_accuracy = smoothed_accuracy(correct, total);
+                let n = r.attempts.len() as u32;
+                let q_correct = r.attempts.iter().filter(|(_, c)| *c).count() as f32;
+                let question_accuracy = if n > 0 { q_correct / n as f32 } else { 0.0 };
+                let last_day = r.attempts.iter().map(|(d, _)| *d).max().unwrap_or(today);
+                let days_since_last = (today - last_day).max(0) as f32;
+                let priority = question_priority(&QuestionPriorityInput {
+                    topic_points: r.topic_points,
+                    topic_accuracy,
+                    attempts: n,
+                    question_accuracy,
+                    days_since_last,
+                });
+                RankedQuestion {
+                    card_id: r.card_id,
+                    priority,
+                    topic: deck_names.get(&r.deck_id).cloned().unwrap_or_default(),
+                    attempts: n,
+                }
+            })
+            .collect();
+
+        ranked.sort_by(|a, b| {
+            b.priority
+                .partial_cmp(&a.priority)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(a.card_id.0.cmp(&b.card_id.0))
+        });
+        Ok(ranked)
     }
 
     /// Computes Memory, Performance and Readiness from the current collection.
@@ -330,6 +424,34 @@ mod test {
         assert_eq!(scores.performance.attempts, 12);
         // With applied evidence, readiness now projects.
         assert!(scores.readiness.projected.is_some());
+    }
+
+    #[test]
+    fn next_questions_ranks_weak_and_unseen_first() {
+        let mut col = Collection::new();
+        let weak = col.get_or_create_normal_deck("Weak").unwrap().id;
+        let strong = col.get_or_create_normal_deck("Strong").unwrap().id;
+
+        // Strong topic: a question answered correctly several times.
+        let strong_known = add_question(&mut col, strong);
+        for _ in 0..3 {
+            col.speedrun_record_attempt(strong_known, true).unwrap();
+        }
+        // Weak topic: a question answered wrong, plus an unseen one.
+        let weak_missed = add_question(&mut col, weak);
+        for _ in 0..3 {
+            col.speedrun_record_attempt(weak_missed, false).unwrap();
+        }
+        let weak_unseen = add_question(&mut col, weak);
+
+        let ranked = col.speedrun_next_questions().unwrap();
+        let order: Vec<CardId> = ranked.iter().map(|r| r.card_id).collect();
+        // The mastered strong-topic question must rank last.
+        assert_eq!(*order.last().unwrap(), strong_known);
+        // Both weak-topic questions outrank the mastered one.
+        let pos = |c: CardId| order.iter().position(|&x| x == c).unwrap();
+        assert!(pos(weak_missed) < pos(strong_known));
+        assert!(pos(weak_unseen) < pos(strong_known));
     }
 
     #[test]

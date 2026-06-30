@@ -390,3 +390,37 @@ Physics/Psych, CC-BY) with stored citations + a held-out eval — this is the
 Phase 3 AI feature and the scalable source; (3) the small hand-authored seed set
 for demos. All three produce identical tagged notes, so the runner + scoring are
 source-agnostic.
+
+---
+
+## 2026-06-30 — Phase 2: weakness-weighted question selection
+
+The practice runner originally just `random.shuffle`d questions — it ignored the
+points-at-stake idea entirely. Fixed that by giving questions their own
+weakness-weighted ranking, the application-question analogue of the Phase 1 review
+queue. They can't reuse `points_at_stake` directly (questions are New cards with no
+FSRS state), so they rank on *applied accuracy* instead of retrievability.
+
+**`question_priority` (new pure fn in `rslib/src/speedrun/queue.rs`, 6 new tests):**
+`priority = topic_points × topic_weakness × need`, where
+- `topic_weakness = 1 − smoothed_topic_accuracy` (floored at 0.1 so mastered
+  topics still get occasional coverage),
+- `smoothed_accuracy` uses a Bayesian prior (mean 0.6, strength 4) so one lucky/
+  unlucky answer can't declare a topic mastered or hopeless,
+- `need` = 1.0 for an unseen question, else `0.6·(1−question_accuracy) + 0.4·spacing`
+  (spacing saturates at 14 days) — favors unseen, recently-missed, and stale.
+
+**Engine method `Collection::speedrun_next_questions`** (`content.rs`, +1 test):
+two passes over tagged questions — accumulate per-topic correct/total, then score
+each question — sorted desc (card-id tiebreak for determinism). Exposed via a new
+`SpeedrunNextQuestions` RPC (single-field response → Anki auto-unwraps it to the
+repeated list on the Python side).
+
+**UI:** seed questions now live in per-topic subdecks (`MCAT Practice::<Topic>`) so
+the engine's deck=topic weighting actually differentiates them. Added a
+"Weakness-weighted order (points at stake)" checkbox (default on; off = random for
+the prove-yourself-wrong comparison) and the runner shows each question's priority.
+
+**Proof (headless):** seed 12 → all unseen at priority 0.40 → master the top
+question (4 correct) → it drops from rank 1 to **last (11/11)** and a fresh topic
+surfaces. 23 Rust speedrun tests green; `just build` green.

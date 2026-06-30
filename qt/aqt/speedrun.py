@@ -184,11 +184,16 @@ def ensure_notetype(col) -> dict:
 
 
 def seed_demo_questions(col) -> int:
-    """Add the hand-authored demo questions. Returns the number added."""
+    """Add the hand-authored demo questions. Returns the number added.
+
+    Each question goes in a per-topic subdeck (``MCAT Practice::<Topic>``) because
+    the engine treats the deck as the question's topic; this makes the
+    weakness-weighted ordering differentiate topics instead of lumping them.
+    """
     nt = ensure_notetype(col)
-    deck_id = col.decks.id(PRACTICE_DECK)
     added = 0
     for topic, stem, a, b, c, d, answer, explanation in SEED_QUESTIONS:
+        deck_id = col.decks.id(f"{PRACTICE_DECK}::{topic}")
         note = col.new_note(nt)
         note["Topic"] = topic
         note["Stem"] = stem
@@ -223,6 +228,7 @@ class SpeedrunDialog(QDialog):
         self.resize(640, 720)
 
         self.questions: list[_Question] = []
+        self.priority_by_card: dict[int, float] = {}
         self.index = 0
         self.correct_count = 0
         self.answered = False
@@ -288,6 +294,17 @@ class SpeedrunDialog(QDialog):
         layout.addStretch(1)
 
         # Bottom controls.
+        self.weighted_check = QCheckBox(
+            "Weakness-weighted order (points at stake)"
+        )
+        self.weighted_check.setChecked(True)
+        self.weighted_check.setToolTip(
+            "On: the engine ranks questions by topic points x weakness x need "
+            "(unseen / recently missed / stale first), the question analogue of "
+            "the points-at-stake review queue.\nOff: plain random order."
+        )
+        layout.addWidget(self.weighted_check)
+
         controls = QHBoxLayout()
         self.start_button = QPushButton("Start practice set")
         self.start_button.clicked.connect(self.start_set)
@@ -362,7 +379,7 @@ class SpeedrunDialog(QDialog):
 
     # Practice flow -----------------------------------------------------------
 
-    def _load_questions(self) -> list[_Question]:
+    def _load_questions_random(self) -> list[_Question]:
         col = self.mw.col
         questions: list[_Question] = []
         for nid in col.find_notes(f"tag:{QUESTION_TAG}"):
@@ -373,10 +390,34 @@ class SpeedrunDialog(QDialog):
             if not card_ids:
                 continue
             questions.append(_Question(card_ids[0], note))
+        random.shuffle(questions)
+        return questions
+
+    def _load_questions_weighted(self) -> list[_Question]:
+        """Order from the engine's points-at-stake question ranking."""
+        col = self.mw.col
+        # Single-field responses are auto-unwrapped, so this is the repeated list.
+        resp = col._backend.speedrun_next_questions()
+        questions: list[_Question] = []
+        self.priority_by_card = {}
+        for item in resp:
+            try:
+                card = col.get_card(item.card_id)
+            except Exception:
+                continue
+            note = card.note()
+            if "Stem" not in note or not note["Stem"]:
+                continue
+            questions.append(_Question(item.card_id, note))
+            self.priority_by_card[item.card_id] = item.priority
         return questions
 
     def start_set(self) -> None:
-        self.questions = self._load_questions()
+        self.priority_by_card = {}
+        if self.weighted_check.isChecked():
+            self.questions = self._load_questions_weighted()
+        else:
+            self.questions = self._load_questions_random()
         if not self.questions:
             showInfo(
                 "No application questions found. Click “Seed demo questions” to add a "
@@ -384,7 +425,6 @@ class SpeedrunDialog(QDialog):
                 parent=self,
             )
             return
-        random.shuffle(self.questions)
         self.index = 0
         self.correct_count = 0
         self.show_question()
@@ -392,9 +432,14 @@ class SpeedrunDialog(QDialog):
     def show_question(self) -> None:
         self.answered = False
         q = self.questions[self.index]
+        extra = ""
+        if self.weighted_check.isChecked():
+            priority = self.priority_by_card.get(q.card_id)
+            if priority is not None:
+                extra = f"  •  points-at-stake priority {priority:.2f}"
         self.progress_label.setText(
             f"Question {self.index + 1} of {len(self.questions)}  •  "
-            f"{self.correct_count} correct so far"
+            f"{self.correct_count} correct so far{extra}"
         )
         self.topic_label.setText(q.topic)
         self.stem_label.setText(q.stem)

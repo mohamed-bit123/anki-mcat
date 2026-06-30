@@ -71,6 +71,25 @@ impl crate::services::SchedulerService for Collection {
         Ok((&scores).into())
     }
 
+    /// Speedrun (MCAT fork): application-question ids in weakness-weighted order.
+    fn speedrun_next_questions(
+        &mut self,
+    ) -> Result<scheduler::SpeedrunNextQuestionsResponse> {
+        use scheduler::speedrun_next_questions_response as pb;
+        let ranked = self.speedrun_next_questions()?;
+        Ok(scheduler::SpeedrunNextQuestionsResponse {
+            questions: ranked
+                .into_iter()
+                .map(|q| pb::Question {
+                    card_id: q.card_id.0,
+                    priority: q.priority,
+                    topic: q.topic,
+                    attempts: q.attempts,
+                })
+                .collect(),
+        })
+    }
+
     /// Message rendering only, for old graphs.
     fn studied_today_message(
         &mut self,

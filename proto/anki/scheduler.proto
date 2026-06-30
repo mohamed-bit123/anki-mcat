@@ -71,6 +71,9 @@ service SchedulerService {
   rpc SpeedrunRecordAttempt(SpeedrunRecordAttemptRequest) returns (generic.Empty);
   // Speedrun (MCAT fork): compute the three scores (Memory/Performance/Readiness).
   rpc SpeedrunScores(generic.Empty) returns (SpeedrunScoresResponse);
+  // Speedrun (MCAT fork): application-question ids in weakness-weighted order
+  // (the question analogue of the points-at-stake review queue).
+  rpc SpeedrunNextQuestions(generic.Empty) returns (SpeedrunNextQuestionsResponse);
 }
 
 // Implicitly includes any of the above methods that are not listed in the
@@ -122,6 +125,19 @@ message SpeedrunScoresResponse {
   Memory memory = 1;
   Performance performance = 2;
   Readiness readiness = 3;
+}
+
+// Speedrun (MCAT fork): application-question card ids ordered by the
+// points-at-stake weakness weighting (highest priority first). Each entry
+// carries its priority and topic so the UI can show *why* a question surfaced.
+message SpeedrunNextQuestionsResponse {
+  message Question {
+    int64 card_id = 1;
+    float priority = 2;
+    string topic = 3;
+    uint32 attempts = 4;
+  }
+  repeated Question questions = 1;
 }
 
 message SchedulingState {

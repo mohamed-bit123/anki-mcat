@@ -96,6 +96,64 @@ fn card_difficulty(card: &Card) -> f32 {
     }
 }
 
+// --- Application-question ordering (the question analogue of points_at_stake) --
+//
+// Flashcards have FSRS memory state, so their queue uses retrievability +
+// difficulty. Application questions are usually New cards with no FSRS state;
+// what we *do* have is graded attempt history. So we rank them on the same
+// philosophy ("spend the next slot where the most points ride and you're
+// weakest") but read weakness from applied accuracy instead of FSRS.
+
+/// Bayesian prior for smoothing per-topic applied accuracy: pretend we've seen
+/// [`TOPIC_ACC_PRIOR_STRENGTH`] attempts at [`TOPIC_ACC_PRIOR_MEAN`] accuracy, so
+/// a single lucky/unlucky answer can't declare a topic mastered or hopeless.
+pub const TOPIC_ACC_PRIOR_MEAN: f32 = 0.6;
+pub const TOPIC_ACC_PRIOR_STRENGTH: f32 = 4.0;
+
+/// Days since last attempt at which spacing pressure on a question saturates.
+pub const QUESTION_SPACING_DAYS: f32 = 14.0;
+
+/// Smoothed accuracy in `0.0..=1.0` from raw correct/total counts.
+pub fn smoothed_accuracy(correct: f32, total: f32) -> f32 {
+    ((correct + TOPIC_ACC_PRIOR_MEAN * TOPIC_ACC_PRIOR_STRENGTH)
+        / (total + TOPIC_ACC_PRIOR_STRENGTH))
+        .clamp(0.0, 1.0)
+}
+
+/// Signals for ranking one application question (analogue of
+/// [`ReviewPriorityInput`]).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct QuestionPriorityInput {
+    /// MCAT points riding on this question's topic (>= 0.0).
+    pub topic_points: f32,
+    /// Smoothed *applied* accuracy for the whole topic, in `0.0..=1.0`.
+    pub topic_accuracy: f32,
+    /// Times this specific question has been attempted.
+    pub attempts: u32,
+    /// This question's own accuracy in `0.0..=1.0` (ignored when unseen).
+    pub question_accuracy: f32,
+    /// Days since this question was last attempted (ignored when unseen).
+    pub days_since_last: f32,
+}
+
+/// Weakness-weighted priority for one application question. Higher = ask sooner.
+///
+/// `priority = topic_points * topic_weakness * need`, where
+/// `topic_weakness = 1 - topic_accuracy` (floored at 0.1 so mastered topics still
+/// get occasional coverage), and `need` is 1.0 for an unseen question, otherwise
+/// blends how often you miss it (retrieval weakness) with how long it's been
+/// (spacing).
+pub fn question_priority(input: &QuestionPriorityInput) -> f32 {
+    let topic_weakness = (1.0 - input.topic_accuracy.clamp(0.0, 1.0)).max(0.1);
+    let need = if input.attempts == 0 {
+        1.0
+    } else {
+        let spacing = (input.days_since_last / QUESTION_SPACING_DAYS).clamp(0.0, 1.0);
+        (0.6 * (1.0 - input.question_accuracy.clamp(0.0, 1.0)) + 0.4 * spacing).clamp(0.0, 1.0)
+    };
+    input.topic_points.max(0.0) * topic_weakness * need
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -142,5 +200,70 @@ mod test {
         // Difficulty above the normalized range can't keep inflating priority.
         let clamped = points_at_stake(&input(0.5, 5.0, 1.0));
         assert!((clamped - hard).abs() < 1e-6);
+    }
+
+    fn q(topic_points: f32, topic_acc: f32, attempts: u32, q_acc: f32, days: f32) -> f32 {
+        question_priority(&QuestionPriorityInput {
+            topic_points,
+            topic_accuracy: topic_acc,
+            attempts,
+            question_accuracy: q_acc,
+            days_since_last: days,
+        })
+    }
+
+    #[test]
+    fn unseen_question_outranks_a_freshly_correct_one() {
+        // Same topic: a question you've never seen should beat one you just
+        // answered correctly today.
+        let unseen = q(1.0, 0.6, 0, 0.0, 0.0);
+        let just_aced = q(1.0, 0.6, 3, 1.0, 0.0);
+        assert!(unseen > just_aced, "{unseen} !> {just_aced}");
+    }
+
+    #[test]
+    fn weaker_topic_wins_when_question_need_is_equal() {
+        // Identical (unseen) question need, but the topic you're worse at carries
+        // more weakness, so its question surfaces first.
+        let weak_topic = q(1.0, 0.3, 0, 0.0, 0.0);
+        let strong_topic = q(1.0, 0.9, 0, 0.0, 0.0);
+        assert!(weak_topic > strong_topic, "{weak_topic} !> {strong_topic}");
+    }
+
+    #[test]
+    fn high_yield_topic_scales_priority() {
+        // Equal weakness/need: doubling the topic's points roughly doubles it.
+        let low = q(1.0, 0.5, 0, 0.0, 0.0);
+        let high = q(2.0, 0.5, 0, 0.0, 0.0);
+        assert!((high - 2.0 * low).abs() < 1e-6);
+    }
+
+    #[test]
+    fn mastered_topic_still_gets_a_priority_floor() {
+        // Even a perfectly-known topic keeps a small non-zero weakness so its
+        // unseen questions eventually get covered.
+        let mastered_unseen = q(1.0, 1.0, 0, 0.0, 0.0);
+        assert!(mastered_unseen > 0.0, "{mastered_unseen} should be > 0");
+    }
+
+    #[test]
+    fn staleness_revives_a_known_question() {
+        // A question answered right but long ago should rank above the same
+        // question answered right just now.
+        let stale = q(1.0, 0.6, 2, 1.0, 30.0);
+        let fresh = q(1.0, 0.6, 2, 1.0, 0.0);
+        assert!(stale > fresh, "{stale} !> {fresh}");
+    }
+
+    #[test]
+    fn smoothing_pulls_extremes_toward_the_prior() {
+        // No data -> the prior mean exactly.
+        assert!((smoothed_accuracy(0.0, 0.0) - TOPIC_ACC_PRIOR_MEAN).abs() < 1e-6);
+        // One correct answer can't claim 100% mastery.
+        let one_right = smoothed_accuracy(1.0, 1.0);
+        assert!(one_right < 1.0 && one_right > TOPIC_ACC_PRIOR_MEAN);
+        // One wrong answer can't claim 0% either.
+        let one_wrong = smoothed_accuracy(0.0, 1.0);
+        assert!(one_wrong > 0.0 && one_wrong < TOPIC_ACC_PRIOR_MEAN);
     }
 }

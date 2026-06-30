@@ -9,8 +9,8 @@ Goal: keep this list short. Prefer new modules + thin registration hooks.
 
 | Upstream file | Why we touched it | Merge risk | Notes |
 | --- | --- | --- | --- |
-| `proto/anki/scheduler.proto` | Added `SpeedrunPing` RPC (Phase 0); Phase 2 added `SpeedrunRecordAttempt` + `SpeedrunScores` RPCs and their request/response messages. | low | Purely additive rpc + message blocks. Conflict only if upstream edits the same trailing lines. |
-| `rslib/src/scheduler/service/mod.rs` | Implemented `speedrun_ping()` (Phase 0); Phase 2 added `speedrun_record_attempt()` + `speedrun_scores()`, each delegating to inherent `Collection` methods. | low | Purely additive methods inside the impl block; mirror `studied_today`. |
+| `proto/anki/scheduler.proto` | Added `SpeedrunPing` RPC (Phase 0); Phase 2 added `SpeedrunRecordAttempt`, `SpeedrunScores`, and `SpeedrunNextQuestions` RPCs + their request/response messages. | low | Purely additive rpc + message blocks. Conflict only if upstream edits the same trailing lines. |
+| `rslib/src/scheduler/service/mod.rs` | Implemented `speedrun_ping()` (Phase 0); Phase 2 added `speedrun_record_attempt()`, `speedrun_scores()`, `speedrun_next_questions()`, each delegating to inherent `Collection` methods. | low | Purely additive methods inside the impl block; mirror `studied_today`. |
 | `qt/aqt/main.py` | Phase 2 UI: added a "MCAT Speedrun…" `QAction` to the Tools menu in `setupMenus`, plus an `on_speedrun()` method opening the dialog. | low | ~8 additive lines at known registration points; all heavy UI lives in the new `qt/aqt/speedrun.py`. |
 | `proto/anki/deck_config.proto` | Added `REVIEW_CARD_ORDER_SPEEDRUN_POINTS_AT_STAKE = 13` to the `ReviewCardOrder` enum (Phase 1 real change). | low | Additive enum value; new tag number, no renumbering. |
 | `rslib/src/lib.rs` | Registered `pub mod speedrun;`. | low | One line; new module is all our code. |
