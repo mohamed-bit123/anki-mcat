@@ -170,3 +170,70 @@ exact desktop + emulator run/install/test commands.
 (desktop), Android env ✓, AnkiDroid APK builds ✓. Remaining Phase 0: Stage B
 (rebuild rsdroid from fork so our Rust change runs on the phone) — needs NDK +
 rust android targets. Then start the real points-at-stake queue (Phase 1).
+
+---
+
+## 2026-06-30 — Stage B DONE: our Rust change runs on the phone (shared engine proven)
+
+Committed Phase 0 desktop work as `74e84d2bc`, then did Stage B.
+
+**How AnkiDroid consumes the engine (discovered):** AnkiDroid pulls `rsdroid` as a
+Maven artifact (`io.github.david-allison:anki-android-backend`, version in
+`gradle/libs.versions.toml` = `0.1.64-anki25.09.2`). `buildSrc/.../BackendDependencies.kt`
+honors `local_backend=true` in AnkiDroid `local.properties`: when set it loads the
+on-disk `../Anki-Android-Backend/rsdroid/build/outputs/aar/rsdroid-release.aar`
+(+ `rsdroid-testing/build/libs/rsdroid-testing.jar`) instead of Maven. So integration
+needs NO version edits — just build the `.aar` next to AnkiDroid and flip the flag.
+
+**Version decision (important).** The backend `.aar` is built from an `anki` git
+submodule. AnkiDroid `main` is written against the **anki 25.09.2** backend API
+(`0.1.64-anki25.09.2`, an untagged Maven build = backend commit `f9b78ba`). Our
+desktop fork is anki **26.05**. To avoid breaking AnkiDroid's `libanki` Kotlin
+(API drift), the MOBILE engine is built at **anki 25.09.2** (+ our additive RPC),
+while DESKTOP stays at 26.05. Both share `rslib` and carry the same additive
+`SpeedrunPing` change, so "one engine" holds. If we ever want a byte-identical
+engine version on both, re-anchor the desktop fork to 25.09.2 (cheap: our change is
+2 additive files). Tracked as an option, not required.
+- Tried backend tag `0.1.63-anki25.09.2` first → AnkiDroid `compileFullDebugKotlin`
+  failed: `Unresolved reference 'MAX_INDIVIDUAL_MEDIA_FILE_SIZE'` (a `Backend`
+  constant added in 0.1.64). Fix: checkout backend commit `f9b78ba`
+  (`VERSION_NAME=0.1.64-anki25.09.2`); same anki submodule pin `3890e12c` (25.09.2),
+  so our change stayed applied. Rebuilt → AnkiDroid compiles clean.
+
+**GOTCHA — directory nesting broke the yarn step.** First `./build.sh` failed at
+anki's web-asset build: `Unrecognized ... setting: npmMinimalAgeGate` from
+`/Users/mohamedshawgi/anki-mcat/.yarnrc.yml`. yarn walks UP the tree and merged our
+desktop fork's (26.05) `.yarnrc.yml` into the backend's anki (25.09.2, older yarn
+4.6.0) which rejects that key. **Fix: moved the mobile checkouts OUT of the desktop
+fork** → `/Users/mohamedshawgi/anki-mcat-mobile/{Anki-Android,Anki-Android-Backend}`
+(siblings, as AnkiDroid's `../Anki-Android-Backend` resolver expects). Also had to
+`rm -rf anki/out` once (stale ninja graph baked the old absolute path) and re-run
+the persistent shell with a valid cwd (the `mv` had pulled the shell's cwd out from
+under it → `/bin/zsh ENOENT`).
+
+**Build chain (all via `Anki-Android-Backend/build.sh` = `cargo run -p build_rust`):**
+anki `./ninja` web/proto assets → `cargo ndk` cross-compile `rslib` for
+`aarch64-linux-android` (arm64 only on M1 by default; `ALL_ARCHS=1` for all) →
+robolectric host JNI → `./gradlew assembleRelease rsdroid-testing:build`. Needs
+NDK **29.0.14206865** (`sdkmanager "ndk;29.0.14206865"`), rust android targets,
+`cargo-ndk@4.1.2` (auto-installed). Backend pins rust **1.89.0** (rustup auto-fetched);
+JDK 17/21/25 OK. First full build ~6m20s; incremental rebuilds ~90s.
+
+**Proof our Rust change reaches the phone:**
+- `grep -a "speedrun: scheduler engine alive"` ⇒ present in
+  `Anki-Android/AnkiDroid/build/outputs/apk/full/debug/AnkiDroid-full-arm64-v8a-debug.apk`
+  → `lib/arm64-v8a/librsdroid.so`. (Use `grep -a`, NOT `strings`: the stripped `.so`
+  keeps the literal in a section `strings` skips by default → false negative.)
+- `.aar` `classes.jar` → `anki/backend/GeneratedBackend` exposes
+  `public java.lang.String speedrunPing()` (+ `speedrunPingRaw(byte[])`) — the proto
+  change flowed into the Kotlin binding automatically.
+- Added a tagged hook in `DeckPicker.onFinishedStartup()`:
+  `showSnackbar(CollectionManager.getBackend().speedrunPing())` + `Timber.i("SPEEDRUN …")`.
+  APK recompiled clean ⇒ the method is callable from AnkiDroid Kotlin. When the user
+  boots the emulator + installs the APK, the deck list shows the engine string and
+  it appears in `adb logcat | grep SPEEDRUN`.
+
+**Phase 0 COMPLETE.** Same additive engine change proven on BOTH desktop (Python
+`speedrun_ping()`) and mobile (APK `librsdroid.so` + `speedrunPing()` + on-screen).
+Next: Phase 1 — the real points-at-stake / weakness-weighted review queue in `rslib`,
+applied to both bases.

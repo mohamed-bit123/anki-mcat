@@ -59,27 +59,56 @@ Check it's ready: `adb devices` should list `emulator-5554  device`.
 2. Install the AnkiDroid APK we built (arm64 matches the emulator):
 ```bash
 adb install -r \
-  "/Users/mohamedshawgi/anki-mcat/mobile/Anki-Android/AnkiDroid/build/outputs/apk/full/debug/AnkiDroid-full-arm64-v8a-debug.apk"
+  "/Users/mohamedshawgi/anki-mcat-mobile/Anki-Android/AnkiDroid/build/outputs/apk/full/debug/AnkiDroid-full-arm64-v8a-debug.apk"
 ```
 Then open "AnkiDroid" from the emulator's app drawer.
 
-3. Rebuild the APK after Android code changes:
+3. See OUR Rust change run on the phone. On the deck list, a snackbar shows
+   `speedrun: scheduler engine alive (anki 25.09.2)`. Or capture it via logcat:
 ```bash
-cd /Users/mohamedshawgi/anki-mcat/mobile/Anki-Android
+adb logcat -d | grep SPEEDRUN
+```
+(The string comes from our `speedrun_ping()` in `rslib`, compiled into
+`librsdroid.so`, called via the generated `Backend.speedrunPing()` binding.)
+
+4. Rebuild the APK after Android code changes:
+```bash
+cd /Users/mohamedshawgi/anki-mcat-mobile/Anki-Android
 export JAVA_HOME="$HOME/jdk21/Contents/Home"; export ANDROID_HOME="$HOME/Library/Android/sdk"
 export PATH="$JAVA_HOME/bin:$PATH"
 ./gradlew :AnkiDroid:assembleFullDebug --console=plain
 ```
 
+5. Rebuild the Rust backend `.aar` after engine (`rslib`) changes, then redo step 4:
+```bash
+cd /Users/mohamedshawgi/anki-mcat-mobile/Anki-Android-Backend
+. "$HOME/.cargo/env"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export JAVA_HOME="$HOME/jdk17/Contents/Home"
+export PATH="$JAVA_HOME/bin:$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+./build.sh            # arm64 only; prepend ALL_ARCHS=1 for every ABI
+```
+AnkiDroid picks up the rebuilt `.aar` automatically (`local_backend=true` in its
+`local.properties`).
+
 ### Tip: run on your real iPhone? (later/bonus)
 iOS is a stretch goal — no AnkiDroid-equivalent to fork; we'd build a Swift app
 over `rslib` via C FFI. Android emulator is the primary mobile target for now.
 
-## IMPORTANT caveat about "our engine" on Android (current status)
-The AnkiDroid build above uses the **stock prebuilt Rust backend (`rsdroid`)**
-pulled from Maven — which IS Anki's real Rust engine (so "shared engine" holds),
-but it does NOT yet contain OUR Rust change (`speedrun_ping`, and later the
-points-at-stake queue). To ship our Rust change to the phone we must rebuild
-`rsdroid` from our fork (needs the Android NDK + rust android targets) and point
-AnkiDroid at the local `.aar`. That's the next mobile milestone (Phase 0 final /
-"Stage B"). Tracked in PLAN.md + JOURNAL.md.
+## Status: OUR engine change now ships on Android (Stage B DONE)
+The APK above is built against `rsdroid` rebuilt **from our fork** (anki 25.09.2 +
+our additive `SpeedrunPing` RPC), wired via `local_backend=true`. Proof: our string
+is in the APK's `librsdroid.so` (`grep -a`), the generated `Backend.speedrunPing()`
+Kotlin binding exists, and the `DeckPicker` hook surfaces it on screen. So the same
+engine change runs on BOTH desktop and phone.
+
+### Mobile layout & versions (so you don't get confused later)
+- Mobile checkouts live OUTSIDE this repo, at `/Users/mohamedshawgi/anki-mcat-mobile/`:
+  `Anki-Android/` (the app) and `Anki-Android-Backend/` (builds `rsdroid`), as
+  siblings. They were moved out of `anki-mcat/` because yarn merged this fork's
+  `.yarnrc.yml` into the backend's older anki and broke the build (see JOURNAL).
+- DESKTOP engine = anki **26.05**; MOBILE engine = anki **25.09.2** (the version
+  AnkiDroid `main` expects). Both carry the same additive change. To make them a
+  byte-identical version, re-anchor desktop to 25.09.2 (optional; 2 additive files).
+- Backend build needs NDK **29.0.14206865** and JDK 17. `build.sh` auto-installs
+  `cargo-ndk` + rust android targets and uses rust 1.89.0 (backend-pinned).

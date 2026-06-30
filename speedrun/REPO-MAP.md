@@ -75,17 +75,34 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
   adding an rpc makes the method REQUIRED, so the compiler enforces the impl.
 - `crate::version::version()` returns the Anki version string ("26.05").
 
-## Mobile (AnkiDroid) — location + facts
-- Cloned at `mobile/Anki-Android/` (shallow; git-ignored by our fork).
-- App module: `AnkiDroid/` (Groovy `build.gradle`). Task:
-  `:AnkiDroid:assembleFullDebug` (flavors: play(default)/amazon/**full**).
-- **Requires JDK 21–25** (Gradle 9.5.0). Desktop Anki uses JDK 17 — keep both:
-  `~/jdk17/Contents/Home` and `~/jdk21/Contents/Home`.
-- `local.properties` has `sdk.dir=$HOME/Library/Android/sdk`.
-- AnkiDroid has a `libanki/` module that wraps Anki's Rust backend; a stock
-  build pulls the prebuilt `rsdroid` backend `.aar` from Maven (no NDK needed).
-  Rebuilding rsdroid from OUR fork (to ship our Rust change to the phone) is the
-  later/harder step and DOES need the NDK + rust android targets.
+## Mobile (AnkiDroid + rsdroid) — location + facts
+- **Lives OUTSIDE this repo** at `/Users/mohamedshawgi/anki-mcat-mobile/` as two
+  sibling checkouts (moved out of `anki-mcat/` to avoid a `.yarnrc.yml` config-bleed
+  build break — see JOURNAL 2026-06-30 Stage B):
+  - `Anki-Android/` — the app. Task `:AnkiDroid:assembleFullDebug`
+    (flavors play(default)/amazon/**full**). Needs **JDK 21–25** (Gradle 9.5.0).
+    APK: `AnkiDroid/build/outputs/apk/full/debug/AnkiDroid-full-arm64-v8a-debug.apk`.
+  - `Anki-Android-Backend/` — builds `rsdroid` (the JNI backend `.aar`) from an
+    `anki` git submodule. Checked out at `f9b78ba` = `0.1.64-anki25.09.2`; submodule
+    pinned at anki `3890e12c` (**25.09.2**) + our additive `SpeedrunPing`.
+- **How AnkiDroid loads the engine:** `buildSrc/.../BackendDependencies.kt` →
+  `local_backend=true` in `Anki-Android/local.properties` makes it use the on-disk
+  `../Anki-Android-Backend/rsdroid/build/outputs/aar/rsdroid-release.aar`
+  (+ `rsdroid-testing/build/libs/rsdroid-testing.jar`); else the Maven artifact
+  `io.github.david-allison:anki-android-backend:<ver>` (catalog `ankiBackend`).
+- **Backend build** (`Anki-Android-Backend/build.sh` = `cargo run -p build_rust`):
+  anki `./ninja` web/proto assets → `cargo ndk` cross-compile `rslib` (arm64 only on
+  M1; `ALL_ARCHS=1` = all 4 ABIs) → robolectric host JNI → `./gradlew assembleRelease`.
+  Needs NDK **29.0.14206865**, JDK 17, rust 1.89.0 (backend-pinned, auto-fetched),
+  `cargo-ndk@4.1.2` (auto-installed). First build ~6m, incremental ~90s.
+- **Generated binding:** adding the RPC to the proto auto-produces
+  `anki/backend/GeneratedBackend.speedrunPing(): String` in the `.aar` — call via
+  `CollectionManager.getBackend().speedrunPing()` from AnkiDroid Kotlin.
+- **Verify a `.so` contains an engine change:** `grep -a "<literal>" librsdroid.so`
+  (NOT `strings`, which skips sections in the stripped lib → false negatives).
+- DESKTOP engine = anki 26.05; MOBILE engine = anki 25.09.2 (kept apart so
+  AnkiDroid's `libanki` Kotlin compiles against its expected API). Same additive
+  change on both. Re-anchor desktop to 25.09.2 if a byte-identical engine is wanted.
 
 ## Android SDK (installed)
 - `ANDROID_HOME=$HOME/Library/Android/sdk`. Packages: platform-tools 37,
@@ -97,4 +114,5 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
 - [ ] Where **proto services are registered** on the Rust side.
 - [ ] Where the **reviewer** calls the backend to fetch/answer cards (qt + ts).
 - [ ] Where **undo** is implemented (must prove undo still works after our change).
-- [ ] How **rsdroid**/`libanki` consumes `rslib` (Android engine sharing, Stage B).
+- [x] How **rsdroid**/`libanki` consumes `rslib` (Android engine sharing, Stage B) —
+      DONE; see Mobile section above (`local_backend` → on-disk `.aar`).

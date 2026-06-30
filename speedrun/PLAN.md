@@ -81,10 +81,14 @@ Build an MCAT prep app on a fork of Anki:
 - [x] Fork/clone Anki into workspace (HEAD recorded in JOURNAL).
 - [x] Install host prereqs (rustup+cargo 1.92.0, just, n2), init ftl submodules.
 - [x] Build desktop from source (`just build` ~89s); engine bridge verified.
-- [ ] Trivial Rust change surfacing in desktop (proves edit→build→call pipeline
-      before investing in the real queue feature).
-- [ ] Build Rust backend for Android (`rsdroid`) + AnkiDroid loads it.
-- [ ] Trivial Rust change surfacing on the phone too (shared-engine proof).
+- [x] Trivial Rust change surfacing in desktop (proves edit→build→call pipeline
+      before investing in the real queue feature). `col._backend.speedrun_ping()`.
+- [x] Build Rust backend for Android (`rsdroid`) from OUR fork + AnkiDroid loads it
+      (`local_backend=true` → on-disk `.aar`). Needed NDK 29 + rust android targets.
+- [x] Trivial Rust change surfacing on the phone too (shared-engine proof): our
+      string is inside the APK's `librsdroid.so`, the generated
+      `GeneratedBackend.speedrunPing()` Kotlin binding exists, and a tagged hook in
+      `DeckPicker` shows it as a snackbar + `SPEEDRUN` logcat line. **PHASE 0 DONE.**
 
 ### Phase 1 — Wednesday (core, NO AI)
 - [ ] Real Rust change: points-at-stake/weakness-weighted queue. New proto msg,
