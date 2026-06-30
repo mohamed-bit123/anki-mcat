@@ -45,6 +45,17 @@ impl crate::services::SchedulerService for Collection {
         self.studied_today().map(Into::into)
     }
 
+    /// Speedrun (MCAT fork): liveness probe. Returns a static string from the
+    /// Rust engine so we can confirm an engine change reaches every client
+    /// (desktop now, mobile later) through the shared proto seam.
+    fn speedrun_ping(&mut self) -> Result<generic::String> {
+        Ok(format!(
+            "speedrun: scheduler engine alive (anki {})",
+            crate::version::version()
+        )
+        .into())
+    }
+
     /// Message rendering only, for old graphs.
     fn studied_today_message(
         &mut self,

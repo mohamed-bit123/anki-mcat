@@ -64,6 +64,9 @@ service SchedulerService {
   // The number of days the calculated interval was fuzzed by on the previous
   // review (if any). Utilized by the FSRS add-on.
   rpc FuzzDelta(FuzzDeltaRequest) returns (FuzzDeltaResponse);
+  // Speedrun (MCAT fork): liveness probe used to validate that a change to the
+  // Rust engine reaches every client (desktop + mobile) through the proto seam.
+  rpc SpeedrunPing(generic.Empty) returns (generic.String);
 }
 
 // Implicitly includes any of the above methods that are not listed in the
