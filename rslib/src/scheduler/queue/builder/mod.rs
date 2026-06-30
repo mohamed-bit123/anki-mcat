@@ -287,9 +287,54 @@ impl Collection {
 
         queues.gather_cards(self)?;
 
+        // Speedrun (MCAT fork): re-rank reviews by weakness-weighted points at
+        // stake when that order is selected. Gathering already happened in
+        // urgent-first order so the daily limit kept the right cards; here we
+        // apply the full priority across the gathered set.
+        if queues.context.sort_options.review_order == ReviewCardOrder::SpeedrunPointsAtStake {
+            let timing = queues.context.timing;
+            let deck_map = queues.context.deck_map.clone();
+            self.speedrun_reorder_reviews(&mut queues.review, &timing, &deck_map)?;
+        }
+
         let queues = queues.build(self.learn_ahead_secs() as i64);
 
         Ok(queues)
+    }
+
+    /// Sorts gathered review cards highest-[`points_at_stake`] first. Ties break
+    /// by card id for deterministic queues. See [`crate::speedrun::queue`].
+    fn speedrun_reorder_reviews(
+        &mut self,
+        reviews: &mut [DueCard],
+        timing: &SchedTimingToday,
+        deck_map: &HashMap<DeckId, Deck>,
+    ) -> Result<()> {
+        use crate::speedrun::queue::points_at_stake;
+        use crate::speedrun::queue::review_priority_input_for_card;
+        use crate::speedrun::queue::DEFAULT_TOPIC_POINTS;
+        use crate::speedrun::queue::TOPIC_POINTS_CONFIG_KEY;
+
+        let topic_points: HashMap<String, f32> = self.get_config_default(TOPIC_POINTS_CONFIG_KEY);
+        let mut priority: HashMap<CardId, f32> = HashMap::with_capacity(reviews.len());
+        for due in reviews.iter() {
+            let card = self.storage.get_card(due.id)?.or_not_found(due.id)?;
+            let points = deck_map
+                .get(&due.current_deck_id)
+                .map(|deck| deck.human_name().to_lowercase())
+                .and_then(|name| topic_points.get(&name).copied())
+                .unwrap_or(DEFAULT_TOPIC_POINTS);
+            let input = review_priority_input_for_card(&card, timing, points);
+            priority.insert(due.id, points_at_stake(&input));
+        }
+        reviews.sort_by(|a, b| {
+            let pa = priority.get(&a.id).copied().unwrap_or(0.0);
+            let pb = priority.get(&b.id).copied().unwrap_or(0.0);
+            pb.partial_cmp(&pa)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        Ok(())
     }
 }
 
@@ -471,6 +516,102 @@ mod test {
         col.update_cards_maybe_undoable(cards, false)?;
         col.set_deck_review_order(&mut deck, ReviewCardOrder::RelativeOverdueness);
         assert_eq!(col.queue_as_due_and_ivl(deck.id), expected_queue);
+
+        Ok(())
+    }
+
+    #[test]
+    fn speedrun_points_at_stake_reranks_reviews_by_weakness() -> Result<()> {
+        // Two due review cards, FSRS off so the SM-2 proxies apply:
+        //   A: due -10, ivl 10, 0 lapses  -> more overdue, but easy
+        //   B: due  -5, ivl 10, 8 lapses  -> less overdue, but maximally weak
+        // Relative-overdueness studies the more-overdue card (A) first.
+        // Points-at-stake weights B's weakness (2x) above A's extra urgency, so
+        // B must come first under our ordering. That difference proves the
+        // engine re-rank actually runs.
+        let mut col = Collection::new();
+        let mut deck = col.get_or_create_normal_deck("Default").unwrap();
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+
+        let mut cards = vec![];
+        for (due, ivl, lapses) in [(-10, 10u32, 0u32), (-5, 10, 8)] {
+            let mut note = nt.new_note();
+            note.set_field(0, "foo")?;
+            note.id.0 = 0;
+            col.add_note(&mut note, deck.id)?;
+            let mut card = col.storage.get_card_by_ordinal(note.id, 0)?.unwrap();
+            card.interval = ivl;
+            card.due = due;
+            card.lapses = lapses;
+            card.ctype = CardType::Review;
+            card.queue = CardQueue::Review;
+            cards.push(card);
+        }
+        col.update_cards_maybe_undoable(cards, false)?;
+
+        col.set_deck_review_order(&mut deck, ReviewCardOrder::RelativeOverdueness);
+        assert_eq!(
+            col.queue_as_due_and_ivl(deck.id),
+            vec![(-10, 10), (-5, 10)],
+            "baseline relative-overdueness studies the more-overdue card first"
+        );
+
+        col.set_deck_review_order(&mut deck, ReviewCardOrder::SpeedrunPointsAtStake);
+        assert_eq!(
+            col.queue_as_due_and_ivl(deck.id),
+            vec![(-5, 10), (-10, 10)],
+            "points-at-stake promotes the weaker (more-lapsed) card"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn speedrun_points_at_stake_weights_high_yield_topics_first() -> Result<()> {
+        // Equal cards in two decks; the deck flagged as high-yield via the
+        // speedrunTopicPoints config must be studied first.
+        let mut col = Collection::new();
+        let mut root = DeckAdder::new("MCAT").add(&mut col);
+        let low = DeckAdder::new("MCAT::psychology").add(&mut col);
+        let high = DeckAdder::new("MCAT::biochemistry").add(&mut col);
+
+        let nt = col.get_notetype_by_name("Basic")?.unwrap();
+        let mut cards = vec![];
+        for deck_id in [low.id, high.id] {
+            let mut note = nt.new_note();
+            note.set_field(0, "foo")?;
+            note.id.0 = 0;
+            col.add_note(&mut note, deck_id)?;
+            let mut card = col.storage.get_card_by_ordinal(note.id, 0)?.unwrap();
+            card.interval = 10;
+            card.due = -10;
+            card.ctype = CardType::Review;
+            card.queue = CardQueue::Review;
+            cards.push(card);
+        }
+        col.update_cards_maybe_undoable(cards, false)?;
+
+        let mut points = std::collections::HashMap::new();
+        points.insert("mcat::biochemistry".to_string(), 5.0f32);
+        col.set_config(crate::speedrun::queue::TOPIC_POINTS_CONFIG_KEY, &points)?;
+
+        col.set_deck_review_order(&mut root, ReviewCardOrder::SpeedrunPointsAtStake);
+        let order = col
+            .build_queues(root.id)?
+            .iter()
+            .map(|entry| {
+                col.storage
+                    .get_card(entry.card_id())
+                    .unwrap()
+                    .unwrap()
+                    .deck_id
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            order,
+            vec![high.id, low.id],
+            "high-yield deck (5 points) should be ranked above the default deck"
+        );
 
         Ok(())
     }

@@ -91,9 +91,12 @@ Build an MCAT prep app on a fork of Anki:
       `DeckPicker` shows it as a snackbar + `SPEEDRUN` logcat line. **PHASE 0 DONE.**
 
 ### Phase 1 — Wednesday (core, NO AI)
-- [ ] Real Rust change: points-at-stake/weakness-weighted queue. New proto msg,
-      called from Python. ≥3 Rust unit tests + 1 Python test. Undo-safe, no
-      corruption. One-page "why Rust" note. Touched-upstream list.
+- [~] Real Rust change: points-at-stake/weakness-weighted queue. DESKTOP DONE:
+      new `ReviewCardOrder::SpeedrunPointsAtStake` (proto enum, additive) + pure
+      ranking module `rslib/src/speedrun/queue.rs` + reorder wired into the queue
+      builder. 5 Rust tests (3 pure unit + 2 queue-level) + 1 Python test, all
+      green; existing queue tests still pass (undo-safe, opt-in, default behavior
+      unchanged). Remaining: ship to mobile (rebuild rsdroid .aar at 25.09.2 base).
 - [ ] MCAT review loop on a real deck.
 - [ ] Memory model w/ honest display: range + give-up rule.
 - [ ] Desktop installer runs on a clean machine.

@@ -893,6 +893,12 @@ fn review_order_sql(order: ReviewCardOrder, timing: SchedTimingToday, fsrs: bool
         ReviewCardOrder::Random => vec![],
         ReviewCardOrder::Added => vec![ReviewOrderSubclause::Added],
         ReviewCardOrder::ReverseAdded => vec![ReviewOrderSubclause::ReverseAdded],
+        // Speedrun (MCAT fork): gather urgent-first so the daily limit keeps the
+        // most at-risk cards; the final points-at-stake ranking is applied in Rust
+        // afterwards (see crate::speedrun::queue).
+        ReviewCardOrder::SpeedrunPointsAtStake => {
+            vec![ReviewOrderSubclause::RelativeOverdueness { fsrs, timing }]
+        }
     };
     subclauses.push(ReviewOrderSubclause::Random);
 

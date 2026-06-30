@@ -237,3 +237,46 @@ JDK 17/21/25 OK. First full build ~6m20s; incremental rebuilds ~90s.
 `speedrun_ping()`) and mobile (APK `librsdroid.so` + `speedrunPing()` + on-screen).
 Next: Phase 1 — the real points-at-stake / weakness-weighted review queue in `rslib`,
 applied to both bases.
+
+---
+
+## 2026-06-30 — Phase 1 (desktop): points-at-stake review queue — the REAL change
+
+The real engine change: a weakness-weighted "points at stake" review ordering.
+
+**Where the queue is built (mapped):** `rslib/src/scheduler/queue/builder/`.
+Reviews are gathered into `QueueBuilder.review: Vec<DueCard>` by SQL keyed on
+`ReviewCardOrder` (`storage/card/mod.rs::review_order_sql`); new cards get an
+in-Rust `sort_new()`. `Collection::build_queues` runs gather → `build()`. That's
+the seam.
+
+**Design — `rslib/src/speedrun/queue.rs` (pure, reusable):**
+`priority = topic_points * urgency * weakness`, where
+`urgency = 1 - retrievability` (P you'll fail it now), `weakness = 1 + difficulty`
+(hard/lapsed cards count more), `topic_points` = MCAT points on the card's topic
+(per-deck via `speedrunTopicPoints` collection config, default 1.0). Higher =
+study first. The function is pure so the readiness model can later show the SAME
+number as evidence. Feature extraction uses real FSRS retrievability/difficulty
+when memory state exists, else interval/overdueness + lapse proxies (works FSRS
+on or off).
+
+**Integration:** added `ReviewCardOrder::SpeedrunPointsAtStake` (proto enum value
+13, additive). When selected, `build_queues` calls `speedrun_reorder_reviews`,
+which loads each gathered review card, computes priority, and stable-sorts desc
+(tie-break by card id). Opt-in per deck; default behavior untouched. Two other
+exhaustive matches forced arms: `review_order_sql` and the FSRS `simulator`.
+
+**Tests (all green):** 3 pure unit tests (urgency dominates / topic points scale /
+weakness breaks ties) + 2 queue-level integration tests (weakness promotes a
+less-overdue lapsed card above a more-overdue easy one; high-yield deck via config
+ranks first) + 1 Python test (`pylib/tests/test_speedrun.py`) that flips
+`reviewOrder` 12↔13 and asserts the queue order changes through proto→Python. All
+14 `scheduler::queue` tests still pass (no regressions). `cargo fmt` clean.
+
+**Why Rust (one-liner for the writeup):** ranking the whole due set by a custom
+multi-factor priority on every queue build is hot-path work over the card store;
+doing it in the shared Rust engine means desktop AND mobile get identical behavior
+from one implementation, instead of reimplementing (and drifting) in Python + Kotlin.
+
+Remaining for Phase 1: apply the same change to the mobile backend's anki (25.09.2)
+and rebuild the rsdroid .aar + APK so the queue change ships to the phone too.

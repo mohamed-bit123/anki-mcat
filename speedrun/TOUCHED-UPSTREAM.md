@@ -11,6 +11,13 @@ Goal: keep this list short. Prefer new modules + thin registration hooks.
 | --- | --- | --- | --- |
 | `proto/anki/scheduler.proto` | Added `SpeedrunPing` RPC to `SchedulerService` (Phase 0 pipeline-validation probe). | low | Purely additive: one rpc line at end of the service block. Conflict only if upstream edits the same trailing lines. |
 | `rslib/src/scheduler/service/mod.rs` | Implemented `speedrun_ping()` for `SchedulerService for Collection`. | low | Purely additive method inside the impl block; mirrors `studied_today`. |
+| `proto/anki/deck_config.proto` | Added `REVIEW_CARD_ORDER_SPEEDRUN_POINTS_AT_STAKE = 13` to the `ReviewCardOrder` enum (Phase 1 real change). | low | Additive enum value; new tag number, no renumbering. |
+| `rslib/src/lib.rs` | Registered `pub mod speedrun;`. | low | One line; new module is all our code. |
+| `rslib/src/storage/card/mod.rs` | Added the new `ReviewCardOrder` arm in `review_order_sql` (gathers urgent-first; reuses the `RelativeOverdueness` subclause). | low | One match arm; forced by exhaustiveness. |
+| `rslib/src/scheduler/queue/builder/mod.rs` | Call `speedrun_reorder_reviews` in `build_queues` when the new order is set, + the method itself, + 2 integration tests. | medium | ~50 lines incl. tests; the only place that reaches into the gathered review vec. Confined to one `if` + one private method. |
+| `rslib/src/scheduler/fsrs/simulator.rs` | Added the new `ReviewCardOrder` arm to the simulator's priority fn (urgency*weakness). | low | One match arm; forced by exhaustiveness. |
+
+New files (all ours, not upstream edits): `rslib/src/speedrun/{mod,queue}.rs` (ranking logic + 3 unit tests), `pylib/tests/test_speedrun.py` (1 Python test).
 | `.gitignore` | Added `mobile/` so the nested AnkiDroid checkout isn't tracked by the fork. | low | Now stale: mobile checkouts were MOVED to `../anki-mcat-mobile/` (outside this repo) to avoid a yarn `.yarnrc.yml` config-bleed conflict (see JOURNAL 2026-06-30 Stage B). Harmless. |
 
 ## Mobile checkouts (separate repos, in `/Users/mohamedshawgi/anki-mcat-mobile/`)

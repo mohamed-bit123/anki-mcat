@@ -116,6 +116,17 @@ fn create_review_priority_fn(
             wrap!(move |_c, _w| rand::rng().random_range(0..deck_size) as i32)
         }
 
+        // Speedrun (MCAT fork): weakness-weighted points at stake. Topic points
+        // aren't modeled in the simulator, so this approximates priority as
+        // urgency * weakness; higher priority sorts earlier.
+        SpeedrunPointsAtStake => {
+            wrap!(move |c, w| {
+                let urgency = 1.0 - c.retrievability(w);
+                let weakness = 1.0 + ((c.difficulty - 1.0) / 9.0).clamp(0.0, 1.0);
+                -((urgency * weakness * 1000.0) as i32)
+            })
+        }
+
         // Not implemented yet
         Added | ReverseAdded | RelativeOverdueness => None,
     }

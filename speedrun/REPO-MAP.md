@@ -109,8 +109,25 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
   emulator 36.6.11, platforms;android-35, build-tools;35.0.0,
   system-images;android-35;google_apis;arm64-v8a. AVD named **`mcat`**.
 
+## Review queue building (Phase 1 seam — FOUND)
+- Builder: `rslib/src/scheduler/queue/builder/mod.rs`. `Collection::build_queues`
+  = `QueueBuilder::new` → `gather_cards` → `build(learn_ahead_secs)`.
+- Reviews land in `QueueBuilder.review: Vec<DueCard>` (`builder/mod.rs`), gathered
+  by SQL via `gather_due_cards` (`builder/gathering.rs`) using `ReviewCardOrder`.
+- The review-order → SQL mapping: `rslib/src/storage/card/mod.rs::review_order_sql`.
+  New-card sort (in Rust) lives in `builder/sorting.rs` (`sort_new`); there is no
+  default in-Rust review sort — reviews are pre-ordered by SQL.
+- `DueCard` fields: id, note_id, mtime, due, current_deck_id, original_deck_id,
+  kind, reps. Full memory state (stability/difficulty, lapses, decay) only on the
+  full `Card` (load via `col.storage.get_card`).
+- FSRS current retrievability in Rust: `fsrs::FSRS::new(None).current_retrievability_seconds(state.into(), card.seconds_since_last_review(&timing), card.decay.unwrap_or(FSRS5_DEFAULT_DECAY))` (pattern from `stats/graphs/retrievability.rs`).
+- OUR change: `ReviewCardOrder::SpeedrunPointsAtStake` (proto `deck_config.proto`,
+  value 13) + `Collection::speedrun_reorder_reviews` in `build_queues` + pure logic
+  in `rslib/src/speedrun/queue.rs`. Other exhaustive matches that need an arm when
+  adding a `ReviewCardOrder`: `review_order_sql` and `scheduler/fsrs/simulator.rs`.
+- Deck config dict key for the order (Python/legacy JSON): `reviewOrder` (int).
+
 ## To locate later (TODO anchors)
-- [ ] Where the due/review **queue is built** (for the points-at-stake change).
 - [ ] Where **proto services are registered** on the Rust side.
 - [ ] Where the **reviewer** calls the backend to fetch/answer cards (qt + ts).
 - [ ] Where **undo** is implemented (must prove undo still works after our change).
