@@ -875,6 +875,12 @@ fn review_order_sql(order: ReviewCardOrder, timing: SchedTimingToday, fsrs: bool
         ReviewCardOrder::Random => vec![],
         ReviewCardOrder::Added => vec![ReviewOrderSubclause::Added],
         ReviewCardOrder::ReverseAdded => vec![ReviewOrderSubclause::ReverseAdded],
+        // Speedrun (MCAT fork): gather most-forgettable first so the daily limit
+        // keeps the at-risk cards; the full points-at-stake ranking is applied in
+        // Rust afterwards (see crate::speedrun::queue).
+        ReviewCardOrder::SpeedrunPointsAtStake => {
+            build_retrievability_clauses(fsrs, timing, SqlSortOrder::Ascending)
+        }
     };
     subclauses.push(ReviewOrderSubclause::Random);
 

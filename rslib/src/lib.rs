@@ -35,10 +35,10 @@ mod progress;
 pub mod revlog;
 pub mod scheduler;
 pub mod search;
-/// Speedrun (MCAT fork): engine extensions for the MCAT study app.
-pub mod speedrun;
 pub mod serde;
 pub mod services;
+/// Speedrun (MCAT fork): engine extensions for the MCAT study app.
+pub mod speedrun;
 mod stats;
 pub mod storage;
 pub mod sync;

@@ -71,7 +71,8 @@ impl crate::services::SchedulerService for Collection {
         Ok((&scores).into())
     }
 
-    /// Speedrun (MCAT fork): application-question ids in weakness-weighted order.
+    /// Speedrun (MCAT fork): application-question ids in weakness-weighted
+    /// order.
     fn speedrun_next_questions(&mut self) -> Result<scheduler::SpeedrunNextQuestionsResponse> {
         use scheduler::speedrun_next_questions_response as pb;
         let ranked = self.speedrun_next_questions()?;
@@ -86,6 +87,29 @@ impl crate::services::SchedulerService for Collection {
                 })
                 .collect(),
         })
+    }
+
+    /// Speedrun (MCAT fork): the next single question by concept-level FSRS.
+    fn speedrun_next_question(&mut self) -> Result<scheduler::SpeedrunNextQuestionResponse> {
+        let next = self.speedrun_next_question()?;
+        let q = next.question;
+        Ok(scheduler::SpeedrunNextQuestionResponse {
+            has_question: q.is_some(),
+            card_id: q.as_ref().map(|q| q.card_id.0).unwrap_or(0),
+            topic: q.as_ref().map(|q| q.topic.clone()).unwrap_or_default(),
+            priority: q.as_ref().map(|q| q.priority).unwrap_or(0.0),
+            attempts: q.as_ref().map(|q| q.attempts).unwrap_or(0),
+            concept_retrievability: next.concept_retrievability,
+            answered_today: next.answered_today,
+            recommended_min: next.recommended_min,
+            recommended_max: next.recommended_max,
+        })
+    }
+
+    /// Speedrun (MCAT fork): seed the built-in MCAT flashcard deck (idempotent).
+    fn speedrun_seed_builtin(&mut self) -> Result<generic::UInt32> {
+        let added = self.speedrun_seed_builtin()?;
+        Ok((added as u32).into())
     }
 
     /// Message rendering only, for old graphs.

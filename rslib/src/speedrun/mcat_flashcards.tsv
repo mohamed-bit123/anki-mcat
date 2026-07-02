@@ -1,0 +1,228 @@
+# MCAT built-in flashcards: topic <TAB> front <TAB> back
+# Original, high-yield cards spanning every MCAT subject. Add lines to grow the
+# bank; the engine seeds them idempotently. Do not use tab characters inside a
+# field. Topics must match the intended subdeck / topic-points keys.
+
+# ===== Biochemistry =====
+Biochemistry	Name the three basic (positively charged at pH 7) amino acids.	Lysine (K), Arginine (R), Histidine (H). Arg and Lys are fully protonated at pH 7.4; His (pKa ~6) is partially protonated.
+Biochemistry	Which amino acids are aromatic?	Phenylalanine (F), Tyrosine (Y), Tryptophan (W). Tyr and Trp absorb UV ~280 nm.
+Biochemistry	Which two amino acids are the acidic (negatively charged) ones?	Aspartate (D) and Glutamate (E), deprotonated carboxyl side chains at physiological pH.
+Biochemistry	Which amino acid disrupts alpha helices and introduces kinks?	Proline; its side chain locks the backbone and it lacks an amide H for H-bonding.
+Biochemistry	What is the rate-limiting enzyme of glycolysis and its key regulators?	Phosphofructokinase-1 (PFK-1); activated by AMP and fructose-2,6-bisphosphate, inhibited by ATP and citrate.
+Biochemistry	Net ATP, NADH, and pyruvate yield from glycolysis per glucose?	2 ATP (net), 2 NADH, 2 pyruvate.
+Biochemistry	What does the Michaelis constant Km represent?	The substrate concentration at half Vmax; a lower Km means higher enzyme-substrate affinity.
+Biochemistry	How do competitive vs noncompetitive inhibitors change Km and Vmax?	Competitive: Km up, Vmax same. Noncompetitive: Km same, Vmax down.
+Biochemistry	Products of one turn of the citric acid cycle per acetyl-CoA?	3 NADH, 1 FADH2, 1 GTP, 2 CO2.
+Biochemistry	What is the final electron acceptor of the electron transport chain?	Oxygen; it combines with electrons and protons to form water.
+Biochemistry	How many ATP per NADH and per FADH2 (standard estimate)?	~2.5 ATP per NADH and ~1.5 ATP per FADH2 via oxidative phosphorylation.
+Biochemistry	What enzyme synthesizes ATP using the proton gradient?	ATP synthase (complex V), driven by chemiosmosis across the inner mitochondrial membrane.
+Biochemistry	What is the committed step of the citric acid cycle?	Citrate synthase (condensation of acetyl-CoA and oxaloacetate); isocitrate dehydrogenase is the main rate-limiter.
+Biochemistry	Distinguish glycogenesis from glycogenolysis.	Glycogenesis builds glycogen (glycogen synthase); glycogenolysis breaks it down (glycogen phosphorylase).
+Biochemistry	What hormone activates gluconeogenesis and glycogenolysis in the liver?	Glucagon (and epinephrine), raising blood glucose.
+Biochemistry	Where does the pentose phosphate pathway occur and what does it produce?	Cytoplasm; produces NADPH (for biosynthesis/antioxidant defense) and ribose-5-phosphate for nucleotides.
+Biochemistry	What are the four levels of protein structure?	Primary (sequence), secondary (alpha helix/beta sheet via H-bonds), tertiary (3D fold), quaternary (multiple subunits).
+Biochemistry	What bond links amino acids and where does it form?	The peptide bond, formed between the carboxyl of one amino acid and the amino of the next (condensation).
+Biochemistry	What is the isoelectric point (pI)?	The pH at which a molecule carries no net charge; for amino acids, the average of the two relevant pKa values.
+Biochemistry	Saturated vs unsaturated fatty acids: which packs tighter?	Saturated (straight chains) pack tightly with high melting points; unsaturated (cis double-bond kinks) are more fluid.
+Biochemistry	What are the fat-soluble vitamins?	A, D, E, and K.
+Biochemistry	Which enzyme unwinds DNA at the replication fork?	Helicase; single-strand binding proteins stabilize the strands and topoisomerase relieves supercoiling.
+Biochemistry	What is the role of DNA polymerase III vs I in prokaryotes?	Pol III synthesizes the new strand 5' to 3'; Pol I removes RNA primers and fills the gaps.
+Biochemistry	What enzyme joins Okazaki fragments?	DNA ligase.
+Biochemistry	What is the direction of DNA synthesis and why are Okazaki fragments needed?	Synthesis is 5' to 3'; the lagging strand is made discontinuously as Okazaki fragments because the template runs antiparallel.
+Biochemistry	Cooperative binding in hemoglobin produces what curve shape?	A sigmoidal O2-binding curve; myoglobin (no cooperativity) is hyperbolic.
+Biochemistry	What is the Bohr effect?	Increased CO2/H+ (lower pH) lowers hemoglobin's O2 affinity, shifting the curve right to release O2 in active tissues.
+Biochemistry	Feedback inhibition typically acts on which enzyme?	The first committed (rate-limiting) enzyme of a pathway, inhibited by the pathway's end product.
+Biochemistry	What is a zymogen?	An inactive enzyme precursor activated by cleavage (e.g., trypsinogen to trypsin).
+Biochemistry	What distinguishes NAD+/NADH from NADP+/NADPH roles?	NAD+ is used mainly in catabolism (energy harvest); NADPH is used mainly in anabolism (biosynthesis).
+
+# ===== Biology =====
+Biology	In which phase is DNA replicated, and which checkpoint precedes mitosis?	S phase; the G2/M checkpoint verifies DNA integrity before mitosis.
+Biology	Order the phases of mitosis.	Prophase, Metaphase, Anaphase, Telophase (then cytokinesis).
+Biology	When do homologous chromosomes separate vs sister chromatids in meiosis?	Homologs separate in anaphase I; sister chromatids separate in anaphase II.
+Biology	Compare sympathetic and parasympathetic effects.	Sympathetic = fight or flight (raises heart rate, dilates pupils); parasympathetic = rest and digest (lowers heart rate, stimulates digestion).
+Biology	Where do transcription and translation occur in eukaryotes?	Transcription in the nucleus; translation in the cytoplasm on ribosomes.
+Biology	What hormone lowers blood glucose and where is it made?	Insulin, from pancreatic beta cells; it promotes glucose uptake and glycogen synthesis.
+Biology	Trace blood flow through the heart from the vena cavae.	Vena cavae, right atrium, tricuspid valve, right ventricle, pulmonary valve, lungs, left atrium, mitral valve, left ventricle, aorta.
+Biology	What is the functional unit of the kidney?	The nephron; most reabsorption occurs in the proximal convoluted tubule.
+Biology	Monohybrid cross Aa x Aa gives what ratios?	Genotype 1:2:1 (AA:Aa:aa); phenotype 3:1 dominant:recessive.
+Biology	Contrast negative and positive feedback.	Negative feedback opposes change to hold a set point (most homeostasis); positive feedback amplifies change (e.g., oxytocin in labor).
+Biology	What hormone raises blood calcium and from which gland?	Parathyroid hormone (PTH) from the parathyroid glands; calcitonin (thyroid) lowers it.
+Biology	Which pituitary hormones regulate the thyroid and adrenal cortex?	TSH stimulates the thyroid; ACTH stimulates the adrenal cortex.
+Biology	What is the resting membrane potential and what maintains it?	About -70 mV, maintained by the Na+/K+ ATPase and K+ leak channels.
+Biology	Sequence the ionic events of an action potential.	Depolarization (Na+ in), repolarization (K+ out), hyperpolarization, then return to rest.
+Biology	What structure allows fast (saltatory) conduction in neurons?	Myelin sheath; the action potential jumps between nodes of Ranvier.
+Biology	What is the difference between an autotroph and a heterotroph?	Autotrophs fix their own carbon (e.g., plants via photosynthesis); heterotrophs consume organic molecules.
+Biology	Where do the light reactions and Calvin cycle occur?	Light reactions in the thylakoid membrane; Calvin cycle in the stroma.
+Biology	What enzyme fixes CO2 in the Calvin cycle?	RuBisCO.
+Biology	What are the products of the light-dependent reactions?	ATP, NADPH, and O2 (from splitting water).
+Biology	Prokaryotic vs eukaryotic cells: key differences?	Prokaryotes lack a nucleus and membrane-bound organelles and have circular DNA; eukaryotes have both and linear chromosomes.
+Biology	What organelle is the site of aerobic respiration?	The mitochondrion (Krebs cycle in the matrix; ETC on the inner membrane).
+Biology	What does the rough ER do vs smooth ER?	Rough ER (ribosomes) makes/processes proteins; smooth ER makes lipids and detoxifies.
+Biology	What is the role of the lymphatic system?	Returns interstitial fluid to blood, absorbs dietary fats, and houses immune cells.
+Biology	Distinguish innate from adaptive immunity.	Innate is fast and nonspecific (barriers, phagocytes); adaptive is slower, specific, and has memory (B and T cells).
+Biology	What do B cells and T cells do?	B cells make antibodies (humoral immunity); T cells kill infected cells (cytotoxic) or coordinate the response (helper).
+Biology	What is the role of the loop of Henle?	Establishes the medullary osmotic gradient to concentrate urine (countercurrent multiplier).
+Biology	Which blood vessel type has the highest total cross-sectional area and slowest flow?	Capillaries, which maximizes exchange time.
+Biology	What is codominance vs incomplete dominance?	Codominance: both alleles fully expressed (e.g., AB blood type). Incomplete dominance: blended phenotype (e.g., pink flowers).
+Biology	What is the difference between mRNA, tRNA, and rRNA?	mRNA carries the code; tRNA brings amino acids matching codons; rRNA is the ribosome's catalytic/structural core.
+Biology	What is a test cross used for?	Crossing an unknown genotype with a homozygous recessive to reveal whether the dominant individual is homozygous or heterozygous.
+
+# ===== General Chemistry =====
+General Chemistry	State the ideal gas law and define each variable.	PV = nRT: P pressure, V volume, n moles, R gas constant, T absolute temperature (K).
+General Chemistry	Relate Gibbs free energy to enthalpy and entropy.	delta-G = delta-H - T*delta-S; spontaneous when delta-G < 0.
+General Chemistry	How does pH relate to [H+]?	pH = -log[H+]; each pH unit is a 10-fold change in [H+].
+General Chemistry	State Le Chatelier's principle.	A system at equilibrium shifts to counteract an applied stress (concentration, pressure, or temperature change).
+General Chemistry	Define oxidation and reduction with a mnemonic.	OIL RIG: Oxidation Is Loss of electrons, Reduction Is Gain of electrons.
+General Chemistry	Name the four quantum numbers.	n (shell/energy), l (subshell shape), m_l (orbital orientation), m_s (spin, +/- 1/2).
+General Chemistry	How does a buffer resist pH change and where is it most effective?	A weak acid/conjugate base pair neutralizes added acid or base; most effective within +/-1 pH unit of the pKa.
+General Chemistry	Trends across a period (left to right) for atomic radius and electronegativity?	Atomic radius decreases; electronegativity increases (greater effective nuclear charge).
+General Chemistry	Trends down a group for atomic radius and ionization energy?	Atomic radius increases; ionization energy decreases.
+General Chemistry	What is the Henderson-Hasselbalch equation?	pH = pKa + log([A-]/[HA]); pH equals pKa when [A-] = [HA].
+General Chemistry	Distinguish endothermic from exothermic reactions by sign of delta-H.	Endothermic: delta-H > 0 (absorbs heat). Exothermic: delta-H < 0 (releases heat).
+General Chemistry	What does a catalyst change and not change?	It lowers activation energy and speeds both directions equally; it does not change delta-G, Keq, or the equilibrium position.
+General Chemistry	Define a strong vs weak acid.	Strong acids fully dissociate (e.g., HCl); weak acids partially dissociate and have a measurable Ka.
+General Chemistry	What is Hess's law?	The total enthalpy change of a reaction is the sum of the enthalpy changes of its steps (state function).
+General Chemistry	Relate Keq to delta-G.	delta-G = -RT ln(Keq); Keq > 1 means products favored (delta-G < 0).
+General Chemistry	What are the colligative properties?	Boiling point elevation, freezing point depression, vapor pressure lowering, osmotic pressure; depend on particle count, not identity.
+General Chemistry	How does the rate law relate to reaction order?	rate = k[A]^m[B]^n; overall order = m + n, determined experimentally.
+General Chemistry	What distinguishes a galvanic from an electrolytic cell?	Galvanic: spontaneous, generates current (delta-G < 0). Electrolytic: nonspontaneous, requires current input.
+General Chemistry	In electrochemistry, where do oxidation and reduction occur?	Oxidation at the anode, reduction at the cathode (An Ox / Red Cat).
+General Chemistry	What is the common-ion effect?	Adding an ion shared with a weak electrolyte or salt shifts equilibrium, decreasing dissociation or solubility.
+General Chemistry	What does a positive standard cell potential (E_cell) indicate?	A spontaneous redox reaction (delta-G < 0).
+General Chemistry	Define electronegativity and the most electronegative element.	Tendency to attract bonding electrons; fluorine is the most electronegative.
+General Chemistry	What is the difference between accuracy and precision?	Accuracy is closeness to the true value; precision is reproducibility of measurements.
+General Chemistry	What are the three main types of intermolecular forces (weakest to strongest)?	London dispersion, dipole-dipole, hydrogen bonding.
+General Chemistry	What is the ideal gas assumption that fails at high pressure/low temperature?	That molecules have no volume and no intermolecular forces; real gases deviate (van der Waals).
+General Chemistry	Define molarity and molality.	Molarity = moles solute per liter of solution; molality = moles solute per kilogram of solvent.
+General Chemistry	What is Raoult's law?	The vapor pressure of a solvent above a solution equals its mole fraction times the pure-solvent vapor pressure.
+General Chemistry	What is the relationship between Ka and pKa?	pKa = -log(Ka); a lower pKa means a stronger acid.
+General Chemistry	How do you identify the limiting reagent?	Convert reactants to product amounts using stoichiometry; the reactant yielding the least product is limiting.
+General Chemistry	What is an amphoteric substance? Give an example.	One that can act as an acid or a base (e.g., water, bicarbonate, Al(OH)3).
+
+# ===== Organic Chemistry =====
+Organic Chemistry	Contrast SN1 and SN2 mechanisms.	SN1: two steps, carbocation intermediate, favored by 3-degree substrates and polar protic solvents, rate depends on substrate only. SN2: one concerted step with backside attack and inversion, favored by 1-degree substrates and polar aprotic solvents, rate depends on both reactants.
+Organic Chemistry	What functional group has a carbonyl bonded to a hydroxyl?	A carboxylic acid (-COOH).
+Organic Chemistry	Define enantiomers vs diastereomers.	Enantiomers are nonsuperimposable mirror images (all stereocenters differ); diastereomers differ at some but not all stereocenters.
+Organic Chemistry	What IR stretch marks a carbonyl and a broad O-H?	C=O near 1700 cm^-1; O-H a broad band ~2500-3300 (acid) or ~3200-3550 (alcohol) cm^-1.
+Organic Chemistry	What nucleophile forms in an aldol reaction?	An enolate, made by deprotonating the alpha carbon; it attacks another carbonyl.
+Organic Chemistry	What does a downfield (high ppm) 1H NMR shift indicate?	A deshielded proton, typically near electronegative atoms or aromatic/carbonyl systems.
+Organic Chemistry	Why are carboxylic acids more acidic than alcohols?	The carboxylate conjugate base is resonance stabilized over two oxygens.
+Organic Chemistry	Define oxidation vs reduction in organic chemistry.	Oxidation increases bonds to O (or decreases bonds to H); reduction increases bonds to H (or decreases bonds to O).
+Organic Chemistry	Rank carbocation stability.	3-degree > 2-degree > 1-degree > methyl; stabilized by hyperconjugation and resonance.
+Organic Chemistry	What distinguishes E1 from E2 elimination?	E1: two steps via carbocation, rate depends on substrate. E2: one step, needs a strong base, anti-periplanar geometry, follows Zaitsev.
+Organic Chemistry	What is a racemic mixture and its optical activity?	An equal mixture of two enantiomers; it is optically inactive (rotations cancel).
+Organic Chemistry	What splitting pattern does the n+1 rule predict?	A proton with n equivalent neighboring protons splits into n+1 peaks.
+Organic Chemistry	What reagent reduces a ketone to a secondary alcohol?	NaBH4 (mild) or LiAlH4 (strong, also reduces esters/acids).
+Organic Chemistry	What is a Grignard reagent and what does it do?	An organomagnesium halide (RMgX); a strong nucleophile/base that adds carbon to carbonyls to form alcohols.
+Organic Chemistry	What is keto-enol tautomerism?	Rapid interconversion between a keto form (C=O) and enol form (C=C-OH); usually favors the keto form.
+Organic Chemistry	What makes a compound aromatic (Huckel's rule)?	Cyclic, planar, fully conjugated, with 4n+2 pi electrons.
+Organic Chemistry	What is the product of esterification (Fischer)?	A carboxylic acid plus an alcohol under acid catalysis gives an ester plus water.
+Organic Chemistry	How do you distinguish a chiral center?	A carbon bonded to four different substituents.
+Organic Chemistry	What separation exploits differences in boiling point?	Distillation (simple or fractional).
+Organic Chemistry	What does thin-layer chromatography (TLC) separate by?	Polarity; less polar compounds travel farther on a nonpolar plate (higher Rf) with a nonpolar solvent.
+Organic Chemistry	What is the difference between kinetic and thermodynamic product control?	Kinetic product forms fastest (low temperature); thermodynamic product is most stable (high temperature, reversible).
+Organic Chemistry	What is Markovnikov's rule?	In HX addition to an alkene, H adds to the carbon with more hydrogens, putting the positive charge on the more stable carbocation.
+Organic Chemistry	What functional group is R-CO-NH2?	An amide.
+Organic Chemistry	Which is more acidic: terminal alkyne, alkene, or alkane C-H?	Terminal alkyne (sp carbon) is most acidic; acidity increases with s-character.
+Organic Chemistry	What does UV-Vis spectroscopy detect in organic molecules?	Conjugated pi systems; more conjugation absorbs at longer wavelengths.
+Organic Chemistry	What is the difference between constitutional isomers and stereoisomers?	Constitutional isomers differ in connectivity; stereoisomers share connectivity but differ in spatial arrangement.
+Organic Chemistry	What reagent oxidizes a primary alcohol to a carboxylic acid?	A strong oxidant such as KMnO4 or Jones reagent (CrO3/H2SO4); PCC stops at the aldehyde.
+Organic Chemistry	Why do amines act as bases?	The nitrogen lone pair accepts a proton.
+Organic Chemistry	What is resonance and how does it affect stability?	Delocalization of electrons across multiple structures; more resonance structures generally mean greater stability.
+Organic Chemistry	What is the leaving group trend in substitution?	Weak bases are good leaving groups (e.g., I- > Br- > Cl-); stability of the departed anion matters.
+
+# ===== Physics =====
+Physics	State Newton's second law with SI units.	F = m*a; force in newtons (kg*m/s^2), mass in kg, acceleration in m/s^2.
+Physics	State the work-energy theorem.	Net work equals the change in kinetic energy: W_net = (1/2)m*v_f^2 - (1/2)m*v_i^2.
+Physics	Write Ohm's law and electrical power formulas.	V = I*R; P = I*V = I^2*R = V^2/R.
+Physics	Give the thin lens/mirror equation.	1/f = 1/o + 1/i; magnification m = -i/o.
+Physics	State Bernoulli's principle qualitatively.	Along a streamline in an ideal fluid, higher speed corresponds to lower pressure.
+Physics	Give the decibel formula for sound intensity.	beta = 10*log10(I/I_0); every 10 dB is a 10x change in intensity.
+Physics	Distinguish speed from velocity.	Speed is a scalar (magnitude); velocity is a vector (magnitude and direction).
+Physics	State the first law of thermodynamics.	delta-U = Q - W: internal energy change equals heat added minus work done by the system.
+Physics	What is the acceleration due to gravity near Earth's surface?	About 9.8 m/s^2 downward.
+Physics	How do you compute projectile range and independence of components?	Horizontal and vertical motions are independent; horizontal velocity is constant, vertical accelerates at g.
+Physics	State Hooke's law.	F = -kx; the restoring force of a spring is proportional to displacement.
+Physics	Give the period of a simple pendulum and a mass-spring system.	Pendulum: T = 2*pi*sqrt(L/g). Spring: T = 2*pi*sqrt(m/k).
+Physics	State conservation of momentum.	Total momentum is conserved in an isolated system: p = m*v is constant absent external forces.
+Physics	Distinguish elastic from inelastic collisions.	Elastic: kinetic energy and momentum conserved. Inelastic: momentum conserved, kinetic energy not (perfectly inelastic objects stick).
+Physics	Define electric field and its units.	Force per unit charge, E = F/q, in N/C (or V/m); points away from positive charge.
+Physics	State Coulomb's law.	F = k*q1*q2/r^2; force between charges is proportional to charge product and inversely to distance squared.
+Physics	How do capacitors in series and parallel combine?	Series adds reciprocals (like resistors in parallel); parallel adds directly.
+Physics	How do resistors in series and parallel combine?	Series adds directly; parallel adds reciprocals.
+Physics	What is the Doppler effect?	Observed frequency rises as source and observer approach and falls as they recede.
+Physics	Define density and specific gravity.	Density = mass/volume; specific gravity = density relative to water (dimensionless).
+Physics	State Archimedes' principle.	Buoyant force equals the weight of the displaced fluid.
+Physics	Give the continuity equation for fluids.	A1*v1 = A2*v2; flow rate is constant, so narrower pipes have faster flow.
+Physics	What is the relationship among wave speed, frequency, and wavelength?	v = f*lambda.
+Physics	What is total internal reflection?	When light in a denser medium hits the boundary beyond the critical angle, it fully reflects.
+Physics	Define power and its unit.	Power is energy per time, P = W/t, in watts (J/s).
+Physics	State the relationship between period and frequency.	f = 1/T.
+Physics	What is the difference between a scalar and vector quantity? Give examples.	Scalars have magnitude only (mass, energy, speed); vectors have magnitude and direction (force, velocity, acceleration).
+Physics	What is the electric potential energy between two charges?	U = k*q1*q2/r; positive for like charges, negative for opposite.
+Physics	Define centripetal acceleration.	a_c = v^2/r, directed toward the center of circular motion.
+Physics	What determines the direction of the magnetic force on a moving charge?	F = qv x B; use the right-hand rule (perpendicular to both velocity and field).
+
+# ===== Psychology =====
+Psychology	Contrast classical and operant conditioning.	Classical pairs a neutral stimulus with an unconditioned stimulus to elicit a conditioned response (Pavlov); operant changes voluntary behavior via reinforcement/punishment (Skinner).
+Psychology	Which reinforcement schedule is most resistant to extinction?	Variable-ratio (reinforcement after an unpredictable number of responses), e.g., gambling.
+Psychology	List Piaget's stages of cognitive development in order.	Sensorimotor, Preoperational, Concrete operational, Formal operational.
+Psychology	Distinguish encoding, storage, and retrieval.	Encoding gets info in; storage maintains it; retrieval accesses it later.
+Psychology	Differentiate stereotype, prejudice, and discrimination.	Stereotype = belief (cognitive); prejudice = attitude/emotion (affective); discrimination = action (behavioral).
+Psychology	Name the components of Freud's personality model.	Id (drives, pleasure principle), ego (reality principle), superego (morals).
+Psychology	Define the fundamental attribution error.	Overattributing others' behavior to disposition while underweighting situational factors.
+Psychology	What is the difference between positive and negative reinforcement?	Positive adds a pleasant stimulus; negative removes an aversive one. Both increase behavior.
+Psychology	Contrast positive and negative punishment.	Positive punishment adds an aversive stimulus; negative punishment removes a pleasant one. Both decrease behavior.
+Psychology	What is the difference between sensation and perception?	Sensation is detecting stimuli via receptors; perception is the brain organizing and interpreting them.
+Psychology	State Weber's law.	The just-noticeable difference is a constant proportion of the original stimulus intensity.
+Psychology	What is the absolute threshold?	The minimum stimulus intensity detectable 50% of the time.
+Psychology	Distinguish retrograde from anterograde amnesia.	Retrograde: loss of past memories; anterograde: inability to form new memories.
+Psychology	What are the stages of sleep including REM features?	NREM stages 1-3 (progressively deeper), then REM with dreaming, rapid eye movement, and muscle atonia.
+Psychology	What brain region consolidates new explicit memories?	The hippocampus.
+Psychology	Contrast the theories of emotion: James-Lange vs Cannon-Bard.	James-Lange: physiological arousal precedes and causes emotion; Cannon-Bard: arousal and emotion occur simultaneously.
+Psychology	What is the Schachter-Singer two-factor theory of emotion?	Emotion results from physiological arousal plus a cognitive label of that arousal.
+Psychology	Define the difference between explicit and implicit memory.	Explicit (declarative) memory is conscious (facts, events); implicit is unconscious (skills, conditioning).
+Psychology	What is Maslow's hierarchy of needs order?	Physiological, safety, love/belonging, esteem, self-actualization.
+Psychology	What neurotransmitter is linked to reward and movement, and its deficiency to Parkinson's?	Dopamine.
+Psychology	Which neurotransmitter is associated with mood, and its deficiency with depression?	Serotonin.
+Psychology	What is the difference between a fixed and growth mindset? (Dweck)	Fixed mindset sees ability as static; growth mindset sees it as improvable through effort.
+Psychology	What is cognitive dissonance?	Discomfort from holding conflicting cognitions, motivating attitude or behavior change to reduce it.
+Psychology	Define the mere-exposure effect.	Repeated exposure to a stimulus increases liking for it.
+Psychology	Distinguish assimilation from accommodation (Piaget).	Assimilation fits new info into existing schemas; accommodation changes schemas to fit new info.
+Psychology	What is observational learning?	Learning by watching and imitating others (Bandura's Bobo doll study).
+Psychology	Define the difference between intrinsic and extrinsic motivation.	Intrinsic comes from internal satisfaction; extrinsic comes from external rewards or pressures.
+Psychology	What is the difference between reliability and validity in testing?	Reliability is consistency of results; validity is whether the test measures what it claims.
+Psychology	What are the Big Five personality traits?	Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism (OCEAN).
+Psychology	What is the difference between a stressor and the general adaptation syndrome?	A stressor is the trigger; Selye's GAS describes the body's stages: alarm, resistance, exhaustion.
+
+# ===== Sociology =====
+Sociology	Compare the three major sociological paradigms.	Functionalism: society as interdependent parts maintaining stability. Conflict theory: competition over limited resources/power. Symbolic interactionism: society built from everyday interactions and shared meanings.
+Sociology	Distinguish primary and secondary groups.	Primary: small, intimate, enduring (family). Secondary: larger, impersonal, goal-oriented (coworkers).
+Sociology	Define socioeconomic status and its components.	Social standing measured by income, education, and occupation.
+Sociology	Distinguish absolute from relative poverty.	Absolute: cannot meet basic survival needs. Relative: significantly fewer resources than others in one's society.
+Sociology	Contrast achieved and ascribed status.	Ascribed status is assigned involuntarily (race, sex); achieved status is earned (physician, spouse).
+Sociology	List the social determinants of health.	Socioeconomic status, education, neighborhood/environment, access to care, and social support.
+Sociology	Distinguish folkway, more, and taboo.	Folkways are everyday etiquette norms; mores carry moral weight; taboos are so strong their violation causes revulsion.
+Sociology	Define cultural capital (Bourdieu).	Nonfinancial assets (education, tastes, credentials, speech) that promote social mobility.
+Sociology	What is the difference between a master status and a role?	Master status dominates how others see you; a role is behavior expected of a particular status.
+Sociology	Define role strain vs role conflict.	Role strain is tension within one role; role conflict is tension between two or more roles.
+Sociology	What is the difference between the Thomas theorem and self-fulfilling prophecy?	Thomas theorem: situations defined as real are real in consequences. Self-fulfilling prophecy: a belief causes its own fulfillment.
+Sociology	Define social reproduction.	The transmission of social inequality across generations through institutions like schools.
+Sociology	What is the difference between horizontal and vertical social mobility?	Horizontal: change within the same status level; vertical: movement up or down the social hierarchy.
+Sociology	Define anomie (Durkheim).	A state of normlessness or breakdown of social norms, often during rapid social change.
+Sociology	What is the difference between a sect, a church, and a cult?	Church is well-integrated with society; sect is a breakaway with stricter norms; cult/new religious movement is novel and outside the mainstream.
+Sociology	Define demographic transition.	The shift from high birth and death rates to low ones as a society industrializes.
+Sociology	What is the difference between assimilation and multiculturalism?	Assimilation absorbs minority groups into the dominant culture; multiculturalism maintains distinct cultures side by side.
+Sociology	Define the sick role (Parsons).	A social role in which the ill are exempt from normal duties but expected to seek help and want to recover.
+Sociology	What is the difference between prejudice and discrimination in sociology?	Prejudice is a prejudgment/attitude; discrimination is unequal treatment (action).
+Sociology	Define globalization.	Growing interconnection of economies, cultures, and populations across national borders.
+Sociology	What is the difference between gemeinschaft and gesellschaft?	Gemeinschaft: community with close personal ties; gesellschaft: society with impersonal, formal relationships.
+Sociology	Define social capital.	The resources and benefits people gain from their social networks and relationships.
+Sociology	What is the difference between class, status, and power (Weber)?	Class is economic position; status is social prestige; power is the ability to achieve goals despite resistance.
+Sociology	Define institutional discrimination.	Discrimination built into the policies and practices of organizations and institutions.
+Sociology	What is the difference between a total institution and a bureaucracy?	Total institutions (prisons, asylums) control all aspects of life; bureaucracies are hierarchical, rule-based organizations.
+Sociology	Define secularization.	The declining influence of religion in society and institutions.
+Sociology	What is the difference between fertility rate and mortality rate?	Fertility rate is births per population; mortality rate is deaths per population.
+Sociology	Define urbanization and a push vs pull factor of migration.	Urbanization is population shift to cities; push factors drive people from an area (war), pull factors attract them (jobs).
+Sociology	What is the difference between in-group and out-group?	In-group is one people identify with; out-group is one they feel they do not belong to or compete with.
+Sociology	Define the concept of intersectionality.	The overlapping of social identities (race, gender, class) that compound experiences of discrimination or privilege.

@@ -287,9 +287,67 @@ impl Collection {
 
         queues.gather_cards(self)?;
 
+        // Speedrun (MCAT fork): re-rank reviews by weakness-weighted points at
+        // stake when that order is selected. Gathering already happened in
+        // urgent-first order so the daily limit kept the right cards; here we
+        // apply the full priority across the gathered set.
+        if queues.context.sort_options.review_order == ReviewCardOrder::SpeedrunPointsAtStake {
+            let timing = queues.context.timing;
+            let deck_map = queues.context.deck_map.clone();
+            self.speedrun_reorder_reviews(&mut queues.review, &timing, &deck_map)?;
+        }
+
         let queues = queues.build(self.learn_ahead_secs() as i64);
 
         Ok(queues)
+    }
+
+    /// Re-ranks gathered reviews by [`points_at_stake`] (weakness- and
+    /// yield-weighted memory priority) and then interleaves them across topics
+    /// so study pulls from all subjects at once. See [`crate::speedrun::queue`].
+    fn speedrun_reorder_reviews(
+        &mut self,
+        reviews: &mut [DueCard],
+        timing: &SchedTimingToday,
+        deck_map: &HashMap<DeckId, Deck>,
+    ) -> Result<()> {
+        use crate::speedrun::queue::interleave_order;
+        use crate::speedrun::queue::points_at_stake;
+        use crate::speedrun::queue::review_priority_input_for_card;
+        use crate::speedrun::queue::InterleaveItem;
+        use crate::speedrun::queue::DEFAULT_TOPIC_POINTS;
+        use crate::speedrun::queue::TOPIC_POINTS_CONFIG_KEY;
+
+        let topic_points: HashMap<String, f32> = self.get_config_default(TOPIC_POINTS_CONFIG_KEY);
+        let mut priority: HashMap<CardId, f32> = HashMap::with_capacity(reviews.len());
+        for due in reviews.iter() {
+            let card = self.storage.get_card(due.id)?.or_not_found(due.id)?;
+            let points = deck_map
+                .get(&due.current_deck_id)
+                .map(|deck| deck.human_name().to_lowercase())
+                .and_then(|name| topic_points.get(&name).copied())
+                .unwrap_or(DEFAULT_TOPIC_POINTS);
+            let input = review_priority_input_for_card(&card, timing, points);
+            priority.insert(due.id, points_at_stake(&input));
+        }
+
+        // Interleave across topics (decks) instead of blocking one topic at a
+        // time. points_at_stake sets each card's priority; interleave_order then
+        // mixes topics so consecutive cards come from different subjects while
+        // the weakest/highest-stakes cards still surface first.
+        let items: Vec<InterleaveItem> = reviews
+            .iter()
+            .enumerate()
+            .map(|(index, due)| InterleaveItem {
+                index,
+                topic_id: due.current_deck_id.0,
+                priority: priority.get(&due.id).copied().unwrap_or(0.0),
+            })
+            .collect();
+        let order = interleave_order(&items);
+        let reordered: Vec<DueCard> = order.iter().map(|&i| reviews[i]).collect();
+        reviews.copy_from_slice(&reordered);
+        Ok(())
     }
 }
 
