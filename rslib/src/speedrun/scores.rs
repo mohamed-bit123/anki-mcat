@@ -19,7 +19,10 @@
 //!
 //! ## Honesty rules (enforced here, not by the UI)
 //! 1. **Give-up rule** — below a minimum amount of evidence a score is withheld
-//!    (`value == None` with a `reason`) instead of shown as a number.
+//!    (`value == None` with a `reason`) instead of shown as a number. For
+//!    Performance this means *full topic coverage with depth*: a number is only
+//!    shown once **every** topic in the question bank has been tested several
+//!    times, so predictions never rest on partial subject coverage.
 //! 2. **No readiness without application** — Readiness is *refused* when there
 //!    is no Performance signal. Memorizing cards alone never produces a
 //!    readiness number; that would be an unbacked claim.
@@ -32,6 +35,7 @@
 //! Everything here is pure and deterministic so it can be unit tested without a
 //! collection and so the UI can show the exact same numbers as evidence.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 /// Tunable thresholds and the percent-correct → scaled-score mapping.
@@ -43,8 +47,14 @@ use std::collections::HashSet;
 pub struct ScoreConfig {
     /// Minimum studied cards before a Memory score is shown.
     pub memory_min_cards: usize,
-    /// Minimum graded attempts before a Performance score is shown.
+    /// Minimum total graded attempts before a Performance score is shown (a
+    /// light floor; the per-topic depth rule below is usually the binding one).
     pub performance_min_attempts: usize,
+    /// A topic counts as "tested with depth" once it has at least this many
+    /// graded attempts. **Every** topic in the question bank must reach this
+    /// depth before a Performance (and therefore Readiness) score is shown, so
+    /// predictions never rest on partial subject coverage.
+    pub performance_min_attempts_per_topic: usize,
     /// Half-life (days) for recency-weighting Performance attempts.
     pub recency_half_life_days: f64,
     /// MCAT total scale bounds.
@@ -67,7 +77,8 @@ impl Default for ScoreConfig {
     fn default() -> Self {
         Self {
             memory_min_cards: 20,
-            performance_min_attempts: 10,
+            performance_min_attempts: 8,
+            performance_min_attempts_per_topic: 3,
             recency_half_life_days: 21.0,
             mcat_min: 472.0,
             mcat_max: 528.0,
@@ -208,24 +219,52 @@ pub fn memory_score(cards: &[CardMemoryInput], cfg: &ScoreConfig) -> MemoryScore
 }
 
 /// Performance = recency- and topic-weighted accuracy on application questions.
-pub fn performance_score(attempts: &[QuestionAttempt], cfg: &ScoreConfig) -> PerformanceScore {
+///
+/// `total_topics` is the number of distinct topics that exist in the question
+/// bank (including any not yet attempted). Every one of them must be tested to
+/// depth before a number is shown.
+pub fn performance_score(
+    attempts: &[QuestionAttempt],
+    total_topics: usize,
+    cfg: &ScoreConfig,
+) -> PerformanceScore {
     let n = attempts.len();
-    let topics_covered = attempts
-        .iter()
-        .map(|a| a.topic_id)
-        .collect::<HashSet<_>>()
-        .len();
+    let mut per_topic: HashMap<u32, usize> = HashMap::new();
+    for a in attempts {
+        *per_topic.entry(a.topic_id).or_default() += 1;
+    }
+    let topics_covered = per_topic.len();
+    let topics_with_depth = per_topic
+        .values()
+        .filter(|&&c| c >= cfg.performance_min_attempts_per_topic)
+        .count();
 
-    if n < cfg.performance_min_attempts {
+    // Give-up rule: EVERY topic in the bank must be tested to depth (plus a
+    // light overall floor) before showing an applied number.
+    let full_coverage = total_topics > 0 && topics_with_depth >= total_topics;
+    if !full_coverage || n < cfg.performance_min_attempts {
+        let reason = if total_topics == 0 {
+            "No application questions in the bank yet — set up MCAT content (or import \
+             questions), then answer them."
+                .to_string()
+        } else if !full_coverage {
+            format!(
+                "Hit every topic at least {} times before predictions — {}/{} topics tested \
+                 in depth so far.",
+                cfg.performance_min_attempts_per_topic, topics_with_depth, total_topics
+            )
+        } else {
+            format!(
+                "Only {n} graded question(s); need {} before estimating applied performance.",
+                cfg.performance_min_attempts
+            )
+        };
         return PerformanceScore {
             value: None,
             attempts: n,
             effective_attempts: 0.0,
             topics_covered,
-            reason_withheld: Some(format!(
-                "Only {n} graded question(s); need {} before estimating applied performance.",
-                cfg.performance_min_attempts
-            )),
+            reason_withheld: Some(reason),
         };
     }
 
@@ -466,7 +505,7 @@ mod test {
     #[test]
     fn performance_withheld_below_minimum() {
         let cfg = ScoreConfig::default();
-        let p = performance_score(&many_attempts(5, 5, 2), &cfg);
+        let p = performance_score(&many_attempts(5, 5, 2), 2, &cfg);
         assert!(p.value.is_none());
         assert_eq!(p.attempts, 5);
         assert!(p.reason_withheld.is_some());
@@ -475,27 +514,65 @@ mod test {
     #[test]
     fn performance_weights_recent_attempts_more() {
         let cfg = ScoreConfig::default();
-        // 20 attempts. Recent ones correct, old ones wrong -> above 50%.
+        // Spread across 3 topics (to satisfy the depth gate). Recent correct,
+        // old wrong -> above 50%.
         let mut recent_good = vec![];
-        for _ in 0..10 {
-            recent_good.push(attempt(true, 1, 0.0)); // today
+        for t in 0..3 {
+            for _ in 0..5 {
+                recent_good.push(attempt(true, t, 0.0)); // today
+            }
+            for _ in 0..5 {
+                recent_good.push(attempt(false, t, 120.0)); // long ago
+            }
         }
-        for _ in 0..10 {
-            recent_good.push(attempt(false, 1, 120.0)); // long ago
-        }
-        let p = performance_score(&recent_good, &cfg).value.unwrap();
+        let p = performance_score(&recent_good, 3, &cfg).value.unwrap();
         assert!(p > 60.0, "recent-good should beat 50%, got {p}");
 
         // Mirror image: recent wrong, old right -> below 50%.
         let mut recent_bad = vec![];
-        for _ in 0..10 {
-            recent_bad.push(attempt(false, 1, 0.0));
+        for t in 0..3 {
+            for _ in 0..5 {
+                recent_bad.push(attempt(false, t, 0.0));
+            }
+            for _ in 0..5 {
+                recent_bad.push(attempt(true, t, 120.0));
+            }
         }
-        for _ in 0..10 {
-            recent_bad.push(attempt(true, 1, 120.0));
-        }
-        let p2 = performance_score(&recent_bad, &cfg).value.unwrap();
+        let p2 = performance_score(&recent_bad, 3, &cfg).value.unwrap();
         assert!(p2 < 40.0, "recent-bad should be below 50%, got {p2}");
+    }
+
+    #[test]
+    fn performance_needs_every_topic_hit_to_depth() {
+        let cfg = ScoreConfig::default();
+        // Bank has 3 topics. Deep in only 2 of them -> withheld (partial cover).
+        let mut two_of_three = vec![];
+        for t in 0..2 {
+            for _ in 0..10 {
+                two_of_three.push(attempt(true, t, 0.0));
+            }
+        }
+        let p = performance_score(&two_of_three, 3, &cfg);
+        assert!(p.value.is_none(), "partial coverage must not unlock a score");
+        let reason = p.reason_withheld.unwrap();
+        assert!(reason.contains("every topic"));
+        assert!(reason.contains("2/3"), "reason should report coverage: {reason}");
+
+        // Third topic present but only 2 attempts (below depth) -> still withheld.
+        let mut third_shallow = two_of_three.clone();
+        third_shallow.push(attempt(true, 2, 0.0));
+        third_shallow.push(attempt(true, 2, 0.0));
+        assert!(performance_score(&third_shallow, 3, &cfg).value.is_none());
+
+        // All 3 topics with >= 3 attempts -> unlocked.
+        let mut third_deep = two_of_three;
+        for _ in 0..3 {
+            third_deep.push(attempt(true, 2, 0.0));
+        }
+        assert!(
+            performance_score(&third_deep, 3, &cfg).value.is_some(),
+            "every topic hit to depth should unlock Performance"
+        );
     }
 
     #[test]
@@ -504,7 +581,7 @@ mod test {
         let cards: Vec<_> = (0..100).map(|i| card(0.95, 1.0, i % 10, true)).collect();
         let mem = memory_score(&cards, &cfg);
         assert!(mem.value.is_some(), "memory should be known");
-        let perf = performance_score(&[], &cfg);
+        let perf = performance_score(&[], 0, &cfg);
         let r = readiness_score(&mem, &perf, &[], &cfg);
         // Even with excellent memory, readiness must be refused.
         assert!(r.projected.is_none());
@@ -521,8 +598,8 @@ mod test {
             &cfg,
         );
 
-        let small = performance_score(&many_attempts(12, 6, 5), &cfg);
-        let large = performance_score(&many_attempts(200, 100, 5), &cfg);
+        let small = performance_score(&many_attempts(20, 10, 5), 5, &cfg);
+        let large = performance_score(&many_attempts(200, 100, 5), 5, &cfg);
         let r_small = readiness_score(&mem, &small, &[], &cfg);
         let r_large = readiness_score(&mem, &large, &[], &cfg);
 
@@ -538,7 +615,7 @@ mod test {
     #[test]
     fn weaker_memory_lowers_readiness() {
         let cfg = ScoreConfig::default();
-        let perf = performance_score(&many_attempts(60, 42, 6), &cfg); // 70%
+        let perf = performance_score(&many_attempts(60, 42, 6), 6, &cfg); // 70%
         let strong_mem = memory_score(
             &(0..50)
                 .map(|i| card(0.98, 1.0, i % 10, true))
@@ -572,7 +649,7 @@ mod test {
                 .collect::<Vec<_>>(),
             &cfg,
         );
-        let perf = performance_score(&many_attempts(60, 42, 6), &cfg);
+        let perf = performance_score(&many_attempts(60, 42, 6), 6, &cfg);
 
         let uncal = readiness_score(&mem, &perf, &[], &cfg);
         assert!(uncal.calibration_note.contains("Not yet calibrated"));
@@ -602,8 +679,8 @@ mod test {
                 .collect::<Vec<_>>(),
             &cfg,
         );
-        let perfect = performance_score(&many_attempts(100, 100, 6), &cfg);
-        let zero = performance_score(&many_attempts(100, 0, 6), &cfg);
+        let perfect = performance_score(&many_attempts(100, 100, 6), 6, &cfg);
+        let zero = performance_score(&many_attempts(100, 0, 6), 6, &cfg);
         let r_hi = readiness_score(&mem, &perfect, &[], &cfg);
         let r_lo = readiness_score(&mem, &zero, &[], &cfg);
         for r in [&r_hi, &r_lo] {

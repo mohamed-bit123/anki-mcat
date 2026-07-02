@@ -154,6 +154,82 @@ pub fn question_priority(input: &QuestionPriorityInput) -> f32 {
     input.topic_points.max(0.0) * topic_weakness * need
 }
 
+// --- Interleaving across topics ----------------------------------------------
+//
+// points_at_stake decides *which* cards matter most. Interleaving decides the
+// *sequence*: the spacing research is clear that mixing topics (interleaving)
+// beats studying one subject in a block, because it forces discrimination and
+// spaces each topic's retrievals. So instead of emitting all of the weakest
+// topic's cards back-to-back, we pull from ALL topics at once, never repeating a
+// topic on consecutive cards while any other topic still has cards, yet always
+// surfacing the highest-priority card available at each step.
+
+/// One card to interleave: its position in the source slice, its topic, and its
+/// points-at-stake priority.
+#[derive(Debug, Clone, Copy)]
+pub struct InterleaveItem {
+    pub index: usize,
+    pub topic_id: i64,
+    pub priority: f32,
+}
+
+/// Returns the source indices in interleaved study order (see module note).
+/// Highest-priority card first; thereafter the highest-priority card whose topic
+/// differs from the one just emitted, falling back to same-topic only when no
+/// other topic has cards left. With a single topic this degenerates to plain
+/// priority-descending order.
+pub fn interleave_order(items: &[InterleaveItem]) -> Vec<usize> {
+    use std::collections::BTreeMap;
+    use std::collections::VecDeque;
+
+    let mut buckets: BTreeMap<i64, Vec<InterleaveItem>> = BTreeMap::new();
+    for it in items {
+        buckets.entry(it.topic_id).or_default().push(*it);
+    }
+    let mut queues: Vec<VecDeque<InterleaveItem>> = buckets
+        .into_values()
+        .map(|mut v| {
+            v.sort_by(|a, b| {
+                b.priority
+                    .partial_cmp(&a.priority)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| a.index.cmp(&b.index))
+            });
+            v.into_iter().collect()
+        })
+        .collect();
+
+    let total: usize = queues.iter().map(|q| q.len()).sum();
+    let mut order = Vec::with_capacity(total);
+    let mut last_topic: Option<i64> = None;
+    while order.len() < total {
+        let mut best: Option<usize> = None;
+        let mut best_priority = f32::NEG_INFINITY;
+        let mut fallback: Option<usize> = None;
+        let mut fallback_priority = f32::NEG_INFINITY;
+        for (qi, q) in queues.iter().enumerate() {
+            let head = match q.front() {
+                Some(h) => h,
+                None => continue,
+            };
+            if Some(head.topic_id) != last_topic {
+                if head.priority > best_priority {
+                    best_priority = head.priority;
+                    best = Some(qi);
+                }
+            } else if head.priority > fallback_priority {
+                fallback_priority = head.priority;
+                fallback = Some(qi);
+            }
+        }
+        let chosen = best.or(fallback).expect("cards remain while total not met");
+        let item = queues[chosen].pop_front().unwrap();
+        last_topic = Some(item.topic_id);
+        order.push(item.index);
+    }
+    order
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -265,5 +341,63 @@ mod test {
         // One wrong answer can't claim 0% either.
         let one_wrong = smoothed_accuracy(0.0, 1.0);
         assert!(one_wrong > 0.0 && one_wrong < TOPIC_ACC_PRIOR_MEAN);
+    }
+
+    fn item(index: usize, topic_id: i64, priority: f32) -> InterleaveItem {
+        InterleaveItem {
+            index,
+            topic_id,
+            priority,
+        }
+    }
+
+    fn topics_of(items: &[InterleaveItem], order: &[usize]) -> Vec<i64> {
+        order.iter().map(|&i| items[i].topic_id).collect()
+    }
+
+    #[test]
+    fn interleave_never_repeats_a_topic_while_others_remain() {
+        // Topic 1 is much weaker (higher priority) than topic 2, so a plain
+        // priority sort would block all of topic 1 first. Interleaving must
+        // alternate topics while both have cards.
+        let items = vec![
+            item(0, 1, 9.0),
+            item(1, 1, 8.0),
+            item(2, 1, 7.0),
+            item(3, 2, 2.0),
+            item(4, 2, 1.0),
+        ];
+        let order = interleave_order(&items);
+        let topics = topics_of(&items, &order);
+        // Highest-priority card still leads.
+        assert_eq!(topics[0], 1);
+        // No two consecutive from the same topic until the smaller topic (2)
+        // is exhausted. Topic 2 has 2 cards, so the first 4 emitted must
+        // alternate 1,2,1,2; the 5th is the leftover topic-1 card.
+        assert_eq!(topics, vec![1, 2, 1, 2, 1]);
+    }
+
+    #[test]
+    fn interleave_leads_with_the_global_highest_priority() {
+        let items = vec![
+            item(0, 5, 1.0),
+            item(1, 6, 100.0),
+            item(2, 7, 50.0),
+        ];
+        let order = interleave_order(&items);
+        assert_eq!(items[order[0]].topic_id, 6);
+        assert_eq!(items[order[1]].topic_id, 7);
+        assert_eq!(items[order[2]].topic_id, 5);
+    }
+
+    #[test]
+    fn interleave_single_topic_is_priority_descending() {
+        let items = vec![
+            item(0, 3, 1.0),
+            item(1, 3, 9.0),
+            item(2, 3, 5.0),
+        ];
+        let order = interleave_order(&items);
+        assert_eq!(order, vec![1, 2, 0]);
     }
 }

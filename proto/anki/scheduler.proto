@@ -74,6 +74,14 @@ service SchedulerService {
   // Speedrun (MCAT fork): application-question ids in weakness-weighted order
   // (the question analogue of the points-at-stake review queue).
   rpc SpeedrunNextQuestions(generic.Empty) returns (SpeedrunNextQuestionsResponse);
+  // Speedrun (MCAT fork): the next single application question, chosen by
+  // concept-level FSRS scheduling (which concept is most due right now), plus
+  // today's answered count and the recommended daily min/max. Drives the
+  // open-ended, one-question-at-a-time practice runner.
+  rpc SpeedrunNextQuestion(generic.Empty) returns (SpeedrunNextQuestionResponse);
+  // Speedrun (MCAT fork): seed the built-in MCAT flashcard deck (idempotent).
+  // Returns the number of cards added (0 if already present).
+  rpc SpeedrunSeedBuiltin(generic.Empty) returns (generic.UInt32);
 }
 
 // Implicitly includes any of the above methods that are not listed in the
@@ -138,6 +146,23 @@ message SpeedrunNextQuestionsResponse {
     uint32 attempts = 4;
   }
   repeated Question questions = 1;
+}
+
+// Speedrun (MCAT fork): the single next application question chosen by
+// concept-level FSRS scheduling, plus daily pacing info for an open-ended
+// session. `has_question` is false only when the bank is empty.
+message SpeedrunNextQuestionResponse {
+  bool has_question = 1;
+  int64 card_id = 2;
+  string topic = 3;
+  float priority = 4;
+  uint32 attempts = 5;
+  // Concept-level FSRS recall probability right now (0..1); lower = more due.
+  float concept_retrievability = 6;
+  // Application questions answered today, and the recommended daily band.
+  uint32 answered_today = 7;
+  uint32 recommended_min = 8;
+  uint32 recommended_max = 9;
 }
 
 message SchedulingState {

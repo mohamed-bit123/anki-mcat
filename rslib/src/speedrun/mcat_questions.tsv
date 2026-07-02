@@ -1,0 +1,123 @@
+# MCAT built-in application questions:
+# topic <TAB> stem <TAB> A <TAB> B <TAB> C <TAB> D <TAB> answer-letter <TAB> explanation
+# Original, hand-authored discrete (standalone) questions. Add lines to grow the
+# bank. Do not use tab characters inside a field.
+
+# ===== Biochemistry =====
+Biochemistry	An enzyme follows Michaelis-Menten kinetics. A competitive inhibitor is added. How are Km and Vmax affected?	Km increases, Vmax unchanged	Km decreases, Vmax unchanged	Km unchanged, Vmax decreases	Km increases, Vmax decreases	A	Competitive inhibitors raise apparent Km but Vmax is unchanged because excess substrate outcompetes the inhibitor.
+Biochemistry	Which amino acid is most likely buried in the hydrophobic core of a globular protein in water?	Lysine	Glutamate	Valine	Serine	C	Valine's nonpolar aliphatic side chain partitions away from water into the core.
+Biochemistry	A noncompetitive inhibitor binds an allosteric site. What is its effect on Vmax and Km?	Vmax decreases, Km unchanged	Vmax unchanged, Km increases	Vmax increases, Km decreases	No effect	A	Noncompetitive inhibitors lower Vmax and leave apparent Km unchanged.
+Biochemistry	Which process generates the most ATP per glucose?	Glycolysis	Citric acid cycle	Oxidative phosphorylation	Fermentation	C	Oxidative phosphorylation produces the vast majority of ATP via the electron transport chain.
+Biochemistry	The pentose phosphate pathway primarily produces which molecule for biosynthesis?	FADH2	NADPH	ATP	GTP	B	The PPP generates NADPH and ribose-5-phosphate; NADPH drives reductive biosynthesis.
+Biochemistry	Which enzyme is the main rate-limiting step of glycolysis?	Hexokinase	Phosphofructokinase-1	Pyruvate kinase	Aldolase	B	PFK-1 catalyzes the committed, rate-limiting step and is allosterically regulated.
+Biochemistry	At a pH well below its pI, a protein will carry what net charge?	Positive	Negative	Neutral	Cannot be determined	A	Below the pI, excess protons protonate the protein, giving a net positive charge.
+Biochemistry	Which bond stabilizes the alpha helix and beta sheet?	Peptide bonds	Hydrogen bonds	Disulfide bonds	Ionic bonds	B	Secondary structure is stabilized by backbone hydrogen bonds.
+Biochemistry	Hemoglobin's cooperative O2 binding produces which curve shape?	Linear	Hyperbolic	Sigmoidal	Exponential	C	Cooperativity yields a sigmoidal binding curve; myoglobin is hyperbolic.
+Biochemistry	Which vitamin is fat-soluble?	Vitamin C	Vitamin B12	Vitamin D	Folate	C	Vitamins A, D, E, and K are fat-soluble; C and the B vitamins are water-soluble.
+Biochemistry	Which enzyme seals nicks between Okazaki fragments?	Helicase	Primase	DNA ligase	Topoisomerase	C	DNA ligase joins the sugar-phosphate backbone of adjacent Okazaki fragments.
+Biochemistry	Feedback inhibition of a pathway most often targets which enzyme?	The last enzyme	The first committed enzyme	A random enzyme	The most abundant enzyme	B	End products inhibit the first committed (rate-limiting) enzyme to conserve resources.
+Biochemistry	Increased CO2 and H+ in active tissue shift the hemoglobin curve which way?	Left, higher affinity	Right, lower affinity	No shift	Vertical	B	The Bohr effect shifts the curve right, releasing O2 where it is needed.
+Biochemistry	Which coenzyme is primarily used in catabolic energy harvest?	NADPH	NAD+	Glutathione	Biotin	B	NAD+ accepts electrons in catabolism; NADPH is used in anabolism.
+Biochemistry	A zymogen is best described as	a membrane transporter	an inactive enzyme precursor	a competitive inhibitor	a structural protein	B	Zymogens are inactive precursors activated by proteolytic cleavage (e.g., trypsinogen).
+
+# ===== Biology =====
+Biology	During which phase of the cell cycle is DNA replicated?	G1	S	G2	M	B	DNA synthesis occurs during S phase.
+Biology	Homologous chromosomes separate during which stage?	Anaphase I of meiosis	Anaphase II of meiosis	Mitotic anaphase	Metaphase I	A	Homologs separate in anaphase I; sisters separate in anaphase II and mitotic anaphase.
+Biology	Which hormone lowers blood glucose?	Glucagon	Insulin	Cortisol	Epinephrine	B	Insulin promotes cellular glucose uptake and glycogen storage, lowering blood glucose.
+Biology	Where does the bulk of nutrient reabsorption occur in the nephron?	Glomerulus	Proximal convoluted tubule	Collecting duct	Bladder	B	The proximal convoluted tubule reabsorbs most filtered nutrients, ions, and water.
+Biology	A cross of two heterozygotes (Aa x Aa) gives what phenotypic ratio?	1:1	9:3:3:1	3:1	1:2:1	C	Monohybrid heterozygote crosses give a 3:1 dominant-to-recessive phenotype ratio.
+Biology	Which vessel carries oxygenated blood away from the heart to the body?	Pulmonary artery	Aorta	Superior vena cava	Pulmonary vein	B	The aorta carries oxygenated blood from the left ventricle to the systemic circulation.
+Biology	Which activates the fight-or-flight response?	Parasympathetic nervous system	Sympathetic nervous system	Somatic nervous system	Enteric nervous system	B	The sympathetic division mediates fight-or-flight responses.
+Biology	The enzyme that fixes carbon dioxide in the Calvin cycle is	ATP synthase	RuBisCO	Rubredoxin	Photosystem II	B	RuBisCO catalyzes CO2 fixation onto RuBP in the Calvin cycle.
+Biology	Which cells produce antibodies?	Cytotoxic T cells	B cells	Macrophages	Neutrophils	B	B cells (plasma cells) secrete antibodies as part of humoral immunity.
+Biology	Saltatory conduction is enabled by	dendrites	the myelin sheath	the cell body	microtubules	B	Myelin lets action potentials jump between nodes of Ranvier, speeding conduction.
+Biology	Which best describes negative feedback?	Amplifies the initial change	Opposes the change to restore a set point	Has no regulatory effect	Only occurs in plants	B	Negative feedback counteracts deviations to maintain homeostasis.
+Biology	The light-dependent reactions of photosynthesis occur in the	stroma	thylakoid membrane	cytoplasm	mitochondria	B	Light reactions occur in the thylakoid membranes; the Calvin cycle occurs in the stroma.
+Biology	AB blood type is an example of	incomplete dominance	codominance	epistasis	sex linkage	B	Both A and B alleles are fully and simultaneously expressed (codominance).
+Biology	Which structure concentrates urine via a countercurrent gradient?	Bowman's capsule	Loop of Henle	Distal tubule	Ureter	B	The loop of Henle establishes the medullary osmotic gradient for concentrating urine.
+Biology	A test cross is performed with which genotype?	Homozygous dominant	Heterozygous	Homozygous recessive	Any genotype	C	A test cross uses a homozygous recessive partner to reveal an unknown genotype.
+
+# ===== General Chemistry =====
+General Chemistry	A reaction has delta-H < 0 and delta-S > 0. It is	never spontaneous	spontaneous at all temperatures	spontaneous only at high T	spontaneous only at low T	B	With delta-H negative and delta-S positive, delta-G is negative at all temperatures.
+General Chemistry	If the pH decreases from 5 to 2, [H+] changes by a factor of	3	100	1000	30	C	Each pH unit is a 10-fold change; three units is 10^3 = 1000-fold increase.
+General Chemistry	Adding a catalyst to a reaction	shifts equilibrium toward products	increases Keq	lowers activation energy	changes delta-G	C	A catalyst lowers activation energy for both directions without changing Keq or delta-G.
+General Chemistry	Which set are the quantum numbers, in order?	n, l, m_l, m_s	x, y, z, t	s, p, d, f	1, 2, 3, 4	A	The four quantum numbers are principal (n), azimuthal (l), magnetic (m_l), and spin (m_s).
+General Chemistry	A buffer is most effective when the pH is	far above the pKa	far below the pKa	near the pKa	exactly 7	C	Buffers resist pH change best within about one unit of the pKa (where [HA] is near [A-]).
+General Chemistry	Across a period from left to right, atomic radius generally	increases	decreases	stays constant	doubles	B	Increasing effective nuclear charge pulls electrons in, decreasing radius across a period.
+General Chemistry	In a galvanic cell, oxidation occurs at the	cathode	anode	salt bridge	electrolyte	B	Oxidation always occurs at the anode (An Ox); reduction at the cathode.
+General Chemistry	Colligative properties depend on	the identity of solute particles	the number of solute particles	the color of the solution	the container size	B	Colligative properties depend on particle count, not identity.
+General Chemistry	For the reaction with Keq much greater than 1, delta-G is	positive	zero	negative	undefined	C	delta-G = -RT ln(Keq); Keq > 1 gives a negative delta-G (products favored).
+General Chemistry	A strong acid is characterized by	partial dissociation	complete dissociation	a high pKa	no dissociation	B	Strong acids dissociate completely in water (e.g., HCl).
+General Chemistry	Boiling point elevation is an example of a	kinetic property	colligative property	catalytic property	redox property	B	Adding solute raises boiling point, a colligative property.
+General Chemistry	The strongest common intermolecular force among these is	London dispersion	dipole-dipole	hydrogen bonding	ion-induced dipole	C	Among these, hydrogen bonding is the strongest intermolecular force.
+General Chemistry	When Ka is larger, the acid is	weaker	stronger	neutral	amphoteric	B	A larger Ka (smaller pKa) means greater dissociation and a stronger acid.
+General Chemistry	Which describes an electrolytic cell?	Spontaneous, delta-G < 0	Nonspontaneous, requires external current	Generates electricity	Has positive E_cell	B	Electrolytic cells drive nonspontaneous reactions using an external power source.
+General Chemistry	The reactant that runs out first and limits product is the	excess reagent	limiting reagent	catalyst	spectator	B	The limiting reagent is fully consumed and caps the amount of product formed.
+
+# ===== Organic Chemistry =====
+Organic Chemistry	Which conditions favor an SN2 reaction?	Tertiary substrate, polar protic solvent	Primary substrate, polar aprotic solvent	Tertiary substrate, weak nucleophile	Bulky base, secondary substrate	B	SN2 is favored by unhindered (primary) substrates, strong nucleophiles, and polar aprotic solvents.
+Organic Chemistry	An SN1 reaction rate depends on	both substrate and nucleophile	the nucleophile only	the substrate only	the solvent only	C	SN1 is first order; the rate-determining step is carbocation formation from the substrate.
+Organic Chemistry	Nonsuperimposable mirror images are	diastereomers	enantiomers	constitutional isomers	conformers	B	Enantiomers are nonsuperimposable mirror images.
+Organic Chemistry	A strong IR absorption near 1700 cm^-1 indicates a	hydroxyl group	carbonyl group	C-H bond	amine	B	The C=O stretch appears near 1700 cm^-1.
+Organic Chemistry	Which carbocation is most stable?	Methyl	Primary	Secondary	Tertiary	D	Tertiary carbocations are most stabilized by hyperconjugation and induction.
+Organic Chemistry	In 1H NMR, a proton with two equivalent neighbors appears as a	singlet	doublet	triplet	quartet	C	By the n+1 rule, two neighbors give a triplet.
+Organic Chemistry	Which reagent reduces a ketone to a secondary alcohol?	KMnO4	NaBH4	PCC	HCl	B	NaBH4 reduces aldehydes and ketones to alcohols.
+Organic Chemistry	A racemic mixture is	optically active dextrorotatory	optically active levorotatory	optically inactive	achiral at every carbon	C	Equal enantiomers cancel rotation, so a racemate is optically inactive.
+Organic Chemistry	Carboxylic acids are more acidic than alcohols because	they are larger	the carboxylate is resonance stabilized	they are less polar	they lack an O-H bond	B	Resonance delocalizes the negative charge of carboxylate over two oxygens.
+Organic Chemistry	A compound is aromatic if it is cyclic, planar, conjugated, and has	4n pi electrons	4n+2 pi electrons	any even number of electrons	no pi electrons	B	Huckel's rule requires 4n+2 pi electrons for aromaticity.
+Organic Chemistry	Markovnikov addition of HBr to propene places Br on	the terminal carbon	the more substituted carbon	both carbons	neither carbon	B	Br adds to the more substituted carbon via the more stable carbocation.
+Organic Chemistry	A carbon bonded to four different groups is a	meso center	chiral center	prochiral center	quaternary ammonium	B	Four different substituents define a chiral (stereogenic) center.
+Organic Chemistry	TLC on a silica plate with a nonpolar solvent gives a higher Rf to	the most polar compound	the least polar compound	ionic compounds	the heaviest compound	B	Less polar compounds interact less with polar silica and travel farther (higher Rf).
+Organic Chemistry	Which C-H is most acidic?	Alkane	Alkene	Terminal alkyne	Cycloalkane	C	Greater s-character (sp) stabilizes the conjugate base, making terminal alkynes most acidic.
+Organic Chemistry	E2 elimination requires	a weak base and heat	a strong base and anti-periplanar geometry	a carbocation intermediate	a polar protic solvent only	B	E2 is concerted, needs a strong base, and proceeds through anti-periplanar geometry.
+
+# ===== Physics =====
+Physics	A 2 kg object accelerates at 3 m/s^2. The net force is	1.5 N	5 N	6 N	9 N	C	F = ma = 2 kg x 3 m/s^2 = 6 N.
+Physics	Doubling the current through a resistor changes power dissipation by a factor of	2	4	1/2	1	B	P = I^2 R, so doubling I quadruples power.
+Physics	Two charges are brought three times closer. The Coulomb force becomes	3x	9x	1/3x	1/9x	B	F is proportional to 1/r^2, so one-third the distance gives nine times the force.
+Physics	Along a streamline, where fluid speed is highest, pressure is	highest	lowest	unchanged	zero	B	Bernoulli's principle: faster flow corresponds to lower pressure.
+Physics	A sound's intensity increases by 30 dB. The intensity increases by a factor of	30	300	1000	100	C	Each 10 dB is 10x; 30 dB is 10^3 = 1000x.
+Physics	The buoyant force on a submerged object equals	the object's weight	the weight of displaced fluid	the object's density	zero	B	Archimedes' principle: buoyant force equals the weight of displaced fluid.
+Physics	Resistors of 4 ohm and 4 ohm in parallel give	8 ohm	4 ohm	2 ohm	16 ohm	C	Parallel: 1/R = 1/4 + 1/4 = 1/2, so R = 2 ohm.
+Physics	The period of a mass-spring oscillator depends on	amplitude	mass and spring constant	gravity	initial velocity	B	T = 2 pi sqrt(m/k); amplitude does not affect the period.
+Physics	In a perfectly inelastic collision, what is conserved?	Kinetic energy only	Momentum only	Both momentum and kinetic energy	Neither	B	Momentum is conserved; kinetic energy is not (objects stick together).
+Physics	A projectile's horizontal velocity during flight (no air resistance)	increases	decreases	stays constant	reverses	C	With no horizontal force, horizontal velocity is constant.
+Physics	Capacitors of 2 F and 2 F in series give	4 F	2 F	1 F	0.5 F	C	Series capacitors add reciprocals: 1/C = 1/2 + 1/2, so C = 1 F.
+Physics	Wave speed equals	frequency divided by wavelength	frequency times wavelength	wavelength divided by frequency	amplitude times frequency	B	v = f x lambda.
+Physics	The centripetal acceleration of an object in circular motion is	v/r	v^2/r	r/v^2	v^2 r	B	Centripetal acceleration is v^2/r directed toward the center.
+Physics	As a sound source approaches an observer, the observed frequency	decreases	increases	is unchanged	drops to zero	B	Approaching source compresses waves, raising observed frequency (Doppler effect).
+Physics	Doubling an object's speed changes its kinetic energy by a factor of	2	4	1/2	8	B	KE is proportional to v^2, so doubling speed quadruples kinetic energy.
+
+# ===== Psychology =====
+Psychology	Pavlov's dogs salivating to a bell demonstrate	operant conditioning	classical conditioning	observational learning	insight learning	B	Pairing a neutral stimulus (bell) with food produces a conditioned response (classical conditioning).
+Psychology	Which reinforcement schedule yields the highest resistance to extinction?	Fixed-ratio	Variable-ratio	Fixed-interval	Continuous	B	Variable-ratio schedules produce steady, extinction-resistant responding.
+Psychology	A child who cannot yet perform conservation tasks is likely in which Piaget stage?	Sensorimotor	Preoperational	Concrete operational	Formal operational	B	Conservation is typically absent until the concrete operational stage.
+Psychology	Attributing a stranger's rudeness to their personality rather than the situation is the	actor-observer bias	fundamental attribution error	self-serving bias	halo effect	B	Overweighting disposition over situation for others' behavior is the fundamental attribution error.
+Psychology	Removing an unpleasant stimulus to increase a behavior is	positive reinforcement	negative reinforcement	positive punishment	negative punishment	B	Negative reinforcement removes an aversive stimulus, increasing the behavior.
+Psychology	The minimum stimulus intensity detectable 50% of the time is the	difference threshold	absolute threshold	Weber fraction	sensory adaptation	B	That definition describes the absolute threshold.
+Psychology	Damage preventing formation of new memories causes	retrograde amnesia	anterograde amnesia	source amnesia	state-dependent memory	B	Anterograde amnesia is the inability to form new memories.
+Psychology	The James-Lange theory of emotion states that	emotion causes arousal	arousal and emotion are simultaneous	physiological arousal precedes and causes emotion	cognition alone causes emotion	C	James-Lange: we feel emotion after interpreting physiological arousal.
+Psychology	Which neurotransmitter deficiency is linked to Parkinson's disease?	Serotonin	Dopamine	GABA	Acetylcholine	B	Loss of dopaminergic neurons in the substantia nigra underlies Parkinson's motor symptoms.
+Psychology	Learning by watching and imitating a model is	classical conditioning	operant conditioning	observational learning	habituation	C	Bandura demonstrated observational (social) learning with the Bobo doll study.
+Psychology	The top of Maslow's hierarchy is	safety	esteem	self-actualization	physiological needs	C	Self-actualization sits at the top of Maslow's hierarchy.
+Psychology	Discomfort from holding two conflicting beliefs is	the mere-exposure effect	cognitive dissonance	the halo effect	groupthink	B	Cognitive dissonance is tension from conflicting cognitions, motivating change.
+Psychology	The hippocampus is most critical for	motor coordination	consolidating explicit memories	regulating heart rate	visual processing	B	The hippocampus consolidates new explicit (declarative) memories.
+Psychology	Riding a bike relies on which type of memory?	Explicit/declarative	Implicit/procedural	Sensory	Prospective	B	Skills like biking are implicit (procedural) memory.
+Psychology	Repeated exposure increasing your liking of a song is the	halo effect	mere-exposure effect	bystander effect	placebo effect	B	The mere-exposure effect: familiarity breeds liking.
+
+# ===== Sociology =====
+Sociology	Viewing society as interdependent parts maintaining stability is	conflict theory	functionalism	symbolic interactionism	feminist theory	B	Functionalism analyzes how social structures work together to maintain stability.
+Sociology	A person's race assigned at birth is an example of	achieved status	ascribed status	master status	role strain	B	Ascribed status is assigned involuntarily, such as race or sex at birth.
+Sociology	Income, education, and occupation together measure	cultural capital	socioeconomic status	social mobility	anomie	B	Socioeconomic status is commonly measured by income, education, and occupation.
+Sociology	A family is best classified as a	secondary group	primary group	out-group	reference group	B	Families are small, intimate, enduring primary groups.
+Sociology	A breakdown of social norms during rapid change is	anomie	assimilation	socialization	stratification	A	Durkheim's anomie is a state of normlessness.
+Sociology	Tension between the demands of being a parent and an employee is	role strain	role conflict	role exit	status inconsistency	B	Conflict between two different roles is role conflict; strain is within one role.
+Sociology	The transmission of social inequality across generations is	social mobility	social reproduction	demographic transition	globalization	B	Social reproduction perpetuates inequality through institutions like schools.
+Sociology	Nonfinancial assets like education and refined tastes are	social capital	cultural capital	human capital	economic capital	B	Bourdieu called these cultural capital.
+Sociology	Movement from a working-class to a professional occupation is	horizontal mobility	vertical mobility	intragenerational only	structural immobility	B	Moving up the class hierarchy is vertical mobility.
+Sociology	The idea that a belief can cause its own fulfillment is the	Thomas theorem	self-fulfilling prophecy	looking-glass self	labeling theory	B	A self-fulfilling prophecy is a belief that leads to its own realization.
+Sociology	The shift from high to low birth and death rates with industrialization is	urbanization	demographic transition	secularization	globalization	B	The demographic transition model describes this shift.
+Sociology	Being exempt from normal duties while expected to seek recovery describes the	sick role	master status	total institution	stigma	A	Parsons described the sick role as legitimizing illness while obligating recovery efforts.
+Sociology	A prison that regulates all aspects of residents' lives is a	bureaucracy	total institution	primary group	reference group	B	Total institutions control nearly every aspect of daily life.
+Sociology	Overlapping identities (race, gender, class) shaping experience is	intersectionality	assimilation	stratification	anomie	A	Intersectionality describes how multiple identities combine to shape privilege or disadvantage.
+Sociology	Weber's dimension referring to social prestige is	class	status	power	caste	B	For Weber, status is prestige, distinct from economic class and political power.

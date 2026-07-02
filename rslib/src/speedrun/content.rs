@@ -106,6 +106,7 @@ impl Collection {
     pub(crate) fn speedrun_record_attempt(&mut self, card_id: CardId, correct: bool) -> Result<()> {
         let today = self.timing_today()?.days_elapsed as i64;
         let mut card = self.storage.get_card(card_id)?.or_not_found(card_id)?;
+        let deck_id = card.deck_id;
 
         let mut data: Value = if card.custom_data.is_empty() {
             Value::Object(Default::default())
@@ -139,6 +140,9 @@ impl Collection {
         card.custom_data = serde_json::to_string(&data)?;
         card.validate_custom_data()?;
         self.update_cards_maybe_undoable(vec![card], true)?;
+
+        // Advance the concept's FSRS memory state (concept-level spacing).
+        self.speedrun_update_concept(deck_id, correct, today)?;
         Ok(())
     }
 
@@ -281,6 +285,9 @@ impl Collection {
         let today = timing.days_elapsed as i64;
         let ids = self.search_cards(SearchNode::from_tag_name(QUESTION_TAG), SortMode::NoOrder)?;
         let mut attempts = Vec::new();
+        // Every distinct question topic (subdeck) in the bank — including ones
+        // not yet attempted — so the give-up rule can require full coverage.
+        let mut all_topics: std::collections::HashSet<u32> = std::collections::HashSet::new();
         for id in ids {
             let card = match self.storage.get_card(id)? {
                 Some(c) => c,
@@ -288,6 +295,7 @@ impl Collection {
             };
             let points = self.topic_points_for_deck(card.deck_id, topic_points, deck_names)?;
             let topic_id = card.deck_id.0 as u32;
+            all_topics.insert(topic_id);
             for (day, correct) in parse_attempts(&card.custom_data) {
                 attempts.push(QuestionAttempt {
                     correct,
@@ -298,7 +306,7 @@ impl Collection {
                 });
             }
         }
-        Ok(performance_score(&attempts, cfg))
+        Ok(performance_score(&attempts, all_topics.len(), cfg))
     }
 
     fn topic_points_for_deck(
@@ -330,7 +338,7 @@ impl Collection {
     }
 }
 
-fn parse_attempts(custom_data: &str) -> Vec<(i64, bool)> {
+pub(crate) fn parse_attempts(custom_data: &str) -> Vec<(i64, bool)> {
     if custom_data.is_empty() {
         return vec![];
     }
@@ -408,10 +416,14 @@ mod test {
         for _ in 0..25 {
             add_flashcard(&mut col, DeckId(1), 3);
         }
-        // 12 questions, each answered correctly once -> Performance known.
-        for _ in 0..12 {
-            let q = add_question(&mut col, DeckId(1));
-            col.speedrun_record_attempt(q, true).unwrap();
+        // 12 questions across 3 topics (4 each), all correct -> Performance
+        // known (satisfies the per-topic depth gate).
+        for name in ["T1", "T2", "T3"] {
+            let did = col.get_or_create_normal_deck(name).unwrap().id;
+            for _ in 0..4 {
+                let q = add_question(&mut col, did);
+                col.speedrun_record_attempt(q, true).unwrap();
+            }
         }
         let scores = col.speedrun_compute_scores().unwrap();
         assert!(scores.memory.value.is_some(), "memory should be known");

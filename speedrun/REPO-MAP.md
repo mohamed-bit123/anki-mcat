@@ -126,6 +126,27 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
   in `rslib/src/speedrun/queue.rs`. Other exhaustive matches that need an arm when
   adding a `ReviewCardOrder`: `review_order_sql` and `scheduler/fsrs/simulator.rs`.
 - Deck config dict key for the order (Python/legacy JSON): `reviewOrder` (int).
+- Topic **interleaving**: `interleave_order` in `rslib/src/speedrun/queue.rs` runs
+  inside `speedrun_reorder_reviews` AFTER points-at-stake scoring — mixes topics
+  (by `current_deck_id`) so no two consecutive reviews share a subject while others
+  remain, keeping highest-priority first. Pure fn, 3 unit tests.
+- Built-in **MCAT flashcards**: `rslib/src/speedrun/seed.rs` — 56 original cards over
+  7 subjects, `Collection::speedrun_seed_builtin` (idempotent, tag `mcat-flashcard`)
+  creates `MCAT::<Topic>` subdecks, sets the `MCAT` deck to points-at-stake review
+  order + `RANDOM_CARDS` new-card gather, seeds high-yield `speedrunTopicPoints`.
+  RPC `SpeedrunSeedBuiltin` (`generic.UInt32`); binding `speedrunSeedBuiltin(): Int`
+  (Kotlin) / auto-unwrapped int (Python). UI buttons "Set up MCAT flashcards" on both.
+- **Concept-level FSRS for questions**: `rslib/src/speedrun/concepts.rs` — per-concept
+  FSRS `MemoryState` in config map `speedrunConcepts` (key = lowercased deck leaf).
+  `Collection::speedrun_next_question` picks the most-due concept (urgency 1-R × MCAT
+  yield, urgency floor + `/(1+times_today)` for within-day rotation) then its least-
+  recently-seen item; `speedrun_update_concept` advances state on each attempt (called
+  from `content.rs::speedrun_record_attempt`). Daily band consts `RECOMMENDED_DAILY_MIN`
+  /`_MAX`. RPC `SpeedrunNextQuestion` → `SpeedrunNextQuestionResponse`; binding
+  `speedrunNextQuestion()`. Drives the open-ended one-at-a-time runner in
+  `qt/aqt/speedrun.py` (`load_next_question`) and `SpeedrunActivity.kt` (`loadNextQuestion`).
+  FSRS gotcha: build with `FSRS::new(Some(&[]))` (default params) — `None` makes
+  `next_states` panic. 5 concept-related unit tests.
 
 ## To locate later (TODO anchors)
 - [ ] Where **proto services are registered** on the Rust side.

@@ -469,3 +469,222 @@ Kotlin API (`notetypes.new/newField/addField/newTemplate/add_template/add`,
 Mobile now matches desktop. The same engine change + scores + ordering + honesty
 rules ship on BOTH platforms. (APK: `AnkiDroid-full-arm64-v8a-debug.apk`, installed
 on AVD `mcat`; entry point Tools-style overflow → "MCAT Speedrun".)
+
+---
+
+## 2026-07-01 — Built-in MCAT flashcards + topic interleaving (desktop + mobile)
+
+**Direction.** Make this a self-contained MCAT app: ship built-in flashcards for
+every MCAT subject, and have the flashcard *spacing methodology* interleave topics
+(pull from all subjects at once) on top of the existing memory-based points-at-stake
+selection. Anki/FSRS is purely time-based, so interleaving is a scheduling/order
+concern, not an FSRS change.
+
+**Interleaving (real engine change, shared `rslib`).** New pure fn
+`interleave_order` in `speedrun/queue.rs` (+3 tests): given each card's topic (deck)
+and its `points_at_stake` priority, it emits the global-highest-priority card first,
+then always the highest-priority card whose topic differs from the one just shown,
+falling back to same-topic only when no other topic has cards left. Single-topic
+input degenerates to plain priority-desc. Wired into `speedrun_reorder_reviews`
+(`scheduler/queue/builder/mod.rs`): after scoring by points-at-stake we build
+`InterleaveItem`s keyed on `current_deck_id` and reorder the gathered reviews via
+`interleave_order`. So reviews are still weakest/highest-yield-first, but topics are
+mixed instead of blocked. Both prior points-at-stake integration tests still pass
+(single-deck + one-card-per-deck are interleave-invariant).
+
+**Built-in content (single source of truth in the engine).** New `speedrun/seed.rs`:
+56 original, high-yield cards across 7 subjects (Biochem, Bio, Gen Chem, Orgo,
+Physics, Psych, Soc), authored once in Rust so desktop + mobile ship the *same* deck
+with zero duplication. `Collection::speedrun_seed_builtin` (idempotent — no-ops if any
+`mcat-flashcard`-tagged card exists) creates per-topic subdecks `MCAT::<Topic>` (Basic
+notetype), sets the `MCAT` root deck to the `SpeedrunPointsAtStake` review order **and**
+`RANDOM_CARDS` new-card gather (so even the first pass mixes topics — new cards have no
+memory signal to interleave on), and seeds high-yield `speedrunTopicPoints`
+(biochem 5, bio/psych 4, gchem/phys/soc 3, orgo 2) without clobbering user values.
+Exposed via new `SpeedrunSeedBuiltin` RPC (`generic.UInt32` count).
+
+**Tests.** cargo: interleave (3) + seed idempotency/coverage (1) + existing 27 speedrun
+tests all green. Python e2e (`pylib/tests/test_speedrun_seed.py`): seeding is
+idempotent and, after turning the seeded cards into due reviews, the `MCAT` queue spans
+≥5 topics with **zero consecutive same-topic cards across the first 14** — proving the
+interleave runs end-to-end through the real engine + proto seam.
+
+**UI.** Desktop `qt/aqt/speedrun.py`: "Set up MCAT flashcards" button → `speedrun_seed_builtin`
+→ `mw.reset()` + info/tooltip. Mobile `SpeedrunActivity.kt`: matching button →
+`CollectionManager.getBackend().speedrunSeedBuiltin()`.
+
+**Mobile port + proof.** Applied the same `queue.rs`/builder/`service`/proto edits to the
+backend `anki` submodule @ 25.09.2 and copied `seed.rs` byte-identical; `./build.sh`
+→ AAR OK, `GeneratedBackend.kt` exposes `speedrunSeedBuiltin(): Int`. Rebuilt+installed
+the APK. On the emulator: overflow → MCAT Speedrun → "SET UP MCAT FLASHCARDS" → the deck
+list now shows an **`MCAT` deck expanding to all 7 subject subdecks, 8 cards each (56)**,
+and studying it draws mixed topics. Same engine, same built-in deck, same interleaving on
+both platforms.
+
+**Note on scope.** "Solely MCAT" = shipped built-in MCAT content + made MCAT the focus;
+did NOT delete the user's other decks (non-destructive).
+
+---
+
+## 2026-07-01 — Content bank scaled + seeding unified in the engine (desktop + mobile)
+
+**Why.** User: the built-in bank was too small, and practice questions were still being
+seeded from per-platform hardcoded lists (Python `SEED_QUESTIONS` on desktop, Kotlin
+`SEED_QUESTIONS` on mobile). Goal: one large built-in bank, one source of truth, seeded
+by the shared engine so desktop and mobile ship identical content. Questions stay
+**topic-separated** from flashcards (Memory tracks recall per topic; Performance tracks
+applied accuracy per topic — kept distinct on purpose per the honesty rules).
+
+**Engine is now the single source of truth.** `rslib/src/speedrun/seed.rs` bundles two TSVs
+via `include_str!` — `mcat_flashcards.tsv` (210 cards, 30 × 7 subjects) and
+`mcat_questions.tsv` (105 questions, 15 × 7 subjects). `speedrun_seed_builtin` now seeds
+BOTH: flashcards into `MCAT::<Topic>` (Basic notetype, `SpeedrunPointsAtStake` +
+`RANDOM_CARDS`), and questions into `MCAT Practice::<Topic>` under a Rust-created
+"MCAT Practice Question" notetype (fields Topic/Stem/A–D/Answer/Explanation, tagged
+`mcat-question`). Idempotent; returns total added (315). To grow the bank later, just edit
+the TSVs — no code changes.
+
+**UIs collapsed to one button.** Desktop `qt/aqt/speedrun.py` and mobile
+`SpeedrunActivity.kt` both now have a single **"Set up MCAT content"** button →
+`speedrun_seed_builtin`. Removed the old dual-path seeders: deleted Python
+`SEED_QUESTIONS`/`ensure_notetype`/`seed_demo_questions` and the "Seed demo questions"
+button; deleted the Kotlin equivalents (`SEED_QUESTIONS`, `seedDemoQuestions`,
+`ensureQuestionNotetype`, `onSeed`, componentN destructuring helpers, unused `Collection`
+import).
+
+**Verified.** cargo `speedrun::seed` green. Desktop: full build + 5 Python e2e tests pass;
+headless seed → 315 added (210 flashcards + 105 questions, 7 subdecks each). Mobile:
+copied `seed.rs` + both TSVs byte-identical to backend @ 25.09.2, rebuilt AAR (flashcard
+text confirmed embedded in `librsdroid.so`), rebuilt+installed arm64 APK. On the emulator:
+overflow → MCAT Speedrun shows only the single "SET UP MCAT CONTENT" button; tapping it
+seeded a fresh collection to **315 notes / 315 cards (210 `mcat-flashcard` + 105
+`mcat-question`)** — confirmed by pulling `collection.anki2`. Same engine, same bank, both
+platforms.
+
+---
+
+## 2026-07-01 — Cleanup pass + timed practice-test mode (desktop)
+
+**Cleanup (new-model review of all fork additions).** Removed a 1.3 GB stray
+`target-speedrun/` scratch build dir and gitignored `/target-speedrun` + `/target-*`.
+Deleted dead constants (`NOTETYPE_NAME`, `PRACTICE_DECK`, `FIELDS`) from
+`qt/aqt/speedrun.py` (seeding is engine-side now; UI only needs the two tags). Fixed three
+stale "Seed demo questions" strings (2 desktop, 1 mobile `SpeedrunActivity.kt`) to
+"Set up MCAT content". Re-verified: desktop build + 5 Python e2e + 27 Rust speedrun unit
+tests all green. Kept `_load_questions_random` — it's the toggle-off baseline, not dead.
+
+**Timed test mode (desktop, pure Qt — no engine/proto changes).** Added two dialogs to
+`qt/aqt/speedrun.py`: `TestSetupDialog` (subject scope incl. "All subjects (mixed)",
+question count, optional timer defaulting to ~90 s/question) and `TestRunnerDialog`
+(QStackedWidget: exam page + summary page). The runner shows one question at a time with
+**no feedback until the end**, Previous/Next nav, a live countdown that auto-submits at
+0:00, then a scored summary (overall %, per-subject breakdown, time used) and a full
+answer-by-answer review with explanations. Honesty preserved: only *answered* questions are
+logged via the existing `speedrun_record_attempt` RPC (blanks are scored incorrect in the
+test summary but never fed to Performance/Readiness). New "Take timed test" button sits next
+to "Start practice set"; both gate on questions existing. Verified headlessly (offscreen
+Qt): 10-q mixed test, answered 6 (4 right / 2 wrong) + 4 blank → exactly 6 attempts logged
+to the engine, summary + review populated. No upstream files touched (all in our
+`qt/aqt/speedrun.py`); no `TOUCHED-UPSTREAM.md` entry needed.
+
+**Not yet done:** mobile parity for the timed test (would mirror into
+`SpeedrunActivity.kt` + APK rebuild). Deferred as a follow-up.
+
+---
+
+## 2026-07-01 — Concept-level FSRS scheduling for questions + open-ended runner
+
+**Why.** The practice runner previously ranked the whole question set once (weakness-
+weighted "points at stake") and marched through it. Re-showing the *same* MCAT item tests
+memory of the item, not the ability to apply the concept to a novel question — which is what
+the exam measures. So we moved spacing up one level: FSRS now schedules the **concept**
+(subject/topic), not the item. This is also the seam AI generation will plug into later
+("concept X is due" → generate a fresh question instead of re-serving one).
+
+**Engine (`rslib/src/speedrun/concepts.rs`, NEW).** Each concept carries an FSRS
+`MemoryState` stored in a collection-config map (`speedrunConcepts`, keyed by lowercased
+deck leaf, e.g. `biology`). `speedrun_update_concept` runs the real `fsrs` crate on each
+graded answer (correct → `good`, incorrect → `again`; `FSRS::new(Some(&[]))` selects the
+default params — `None` disables next_states and panics). `speedrun_next_question` picks the
+most-due concept and serves its least-recently-seen item. Priority blends three signals:
+`urgency = 1-R` (real FSRS spacing across days) × MCAT-yield points, with a small urgency
+floor and a `/(1+times_today)` divisor so a single session **rotates across concepts
+instead of hammering the highest-yield one** once everything's been reviewed today (FSRS is
+whole-day, so within-day it has no spacing signal left). Interleaving thus falls out of the
+FSRS dynamics for free — verified distribution over 21 answers ≈ yield-proportional
+(Biochem 5 / Bio 4 / Psych 4 / GChem 3 / Phys 2 / Soc 2 / Orgo 1) with only 1 consecutive
+repeat. `speedrun_record_attempt` now also advances the concept state (derives concept from
+the card's deck). Daily pacing: response carries `answered_today` + recommended band
+(`RECOMMENDED_DAILY_MIN=20`, `MAX=60`); nothing is hard-blocked.
+
+**Proto/seam.** Added `rpc SpeedrunNextQuestion` + `SpeedrunNextQuestionResponse`
+(`has_question`, card/topic/priority/attempts, `concept_retrievability`, `answered_today`,
+`recommended_min/max`). Old plural `SpeedrunNextQuestions` kept (still tested) but no longer
+UI-driven. Service impl in `scheduler/service/mod.rs`.
+
+**UI — open-ended, one at a time.** Both desktop (`qt/aqt/speedrun.py`) and mobile
+(`SpeedrunActivity.kt`) rewritten: no fixed set size. "Start practice" fetches one question
+via `speedrun_next_question`; after answering, "Next question" fetches the next. Shows a
+daily label ("Today: N answered (recommended 20–60) — …"), a session counter, and a
+per-question "why" (concept + FSRS recall %, or "new concept"). Removed the old
+weighted/random batch loaders and the "Weakness-weighted order" checkbox (the flow is now
+inherently scheduled). Timed-test mode (desktop) untouched — it still random-samples.
+
+**Verified.** Rust: `speedrun::` 30/30 unit tests green (3 new concept tests incl.
+within-day rotation). Desktop: full build, 5 Python e2e green, headless smoke shows
+yield-proportional interleaving + daily counting. Mobile: fsrs 5.1.0 vs desktop 5.2.0 (same
+major — API compatible); copied `concepts.rs` byte-identical, applied the 3 `content.rs`
+edits + `mod.rs`/proto/service edits, rebuilt AAR (generated `speedrunNextQuestion()` Kotlin
+binding present) + APK. On emulator: overflow → MCAT Speedrun → Set up → Start practice
+served **Biochemistry · new concept**, answering it flipped the daily label to "1 answered"
+and the session to "1 correct" with the correct explanation, and Next served **Biology ·
+new concept** — same introduce-by-yield + interleave behavior as desktop.
+
+---
+
+## 2026-07-01 — Performance/Readiness give-up rule now requires FULL topic coverage
+
+**Why.** The old gate showed a Performance number after just 10 total attempts — which
+could all be one lucky subject. Per user: withhold predictions until **every** MCAT topic
+has been hit at least 3 times, so a projection never rests on partial subject coverage.
+(Iterated from a first "≥3 topics deep" cut to "all topics deep".)
+
+**Change (`rslib/src/speedrun/scores.rs` + `content.rs`).** `ScoreConfig` gained
+`performance_min_attempts_per_topic` (default 3); `performance_min_attempts` lowered to 8 as
+a light floor. `performance_score(attempts, total_topics, cfg)` now takes the size of the
+topic universe and withholds unless **all** `total_topics` have ≥3 graded attempts, with a
+reason like *"Hit every topic at least 3 times before predictions — 6/7 topics tested in
+depth so far."* `content.rs::gather_performance` computes `total_topics` as the count of
+distinct question subdecks in the bank (including unattempted ones); `topic_id` = subdeck id,
+so coverage/depth are tracked per MCAT subject. Readiness cascades (it's gated on
+Performance). UI unchanged — it already renders the withheld reason.
+
+**Verified.** Rust: 32/32 `speedrun::` tests (new `performance_needs_every_topic_hit_to_depth`;
+recency/range/etc. tests updated to pass `total_topics`). Desktop: rebuilt, 2 score e2e green.
+Backend headless on the full seeded bank (7 subjects): 6/7 subjects hit 3× each → withheld
+("6/7 topics tested in depth so far"), Readiness withheld; after the 7th subject → Performance
++ Readiness both unlock. Mobile: copied `scores.rs`, applied the `content.rs` edit, rebuilt
+AAR + APK, reinstalled on emulator (same shared engine).
+
+---
+
+## 2026-07-01 — "I don't know / I'm guessing" button (both apps)
+
+**Why.** Honesty: if a user guesses and happens to be right, that shouldn't inflate
+Performance/Readiness. Give them an explicit way to say "I don't know" instead of guessing.
+
+**Design (UI-only — no engine/proto change).** Added an "I don't know / I'm guessing" button
+to the practice runner in both apps. Tapping it reveals the correct answer + explanation (so
+you still learn) and logs the attempt via the existing `speedrun_record_attempt(card_id,
+correct=false)`. Because it records as *not known*, it (a) counts against applied accuracy so
+guessing can't inflate scores, and (b) advances that concept's FSRS state as an "again"
+(concept comes back sooner) — the pedagogically correct outcome. It increments the session
+"answered" and daily counters but never the "correct" counter. Desktop: `qt/aqt/speedrun.py`
+(`on_dont_know`, orange "Marked ‘don't know’" feedback). Mobile: `SpeedrunActivity.kt`
+(`onDontKnow`). The timed-test mode is intentionally left as-is (an exam simulates real
+guessing; leaving a question blank there is already excluded from scoring).
+
+**Verified.** Desktop offscreen smoke: button records `spA:[[0,0]]` (incorrect), session
+stays 0 correct, honest feedback shown, Next enabled. Mobile on emulator: Start practice →
+"I don't know" → session "1 answered • 0 correct", daily "2 answered", answer revealed,
+Performance still gated. Same behavior both platforms.

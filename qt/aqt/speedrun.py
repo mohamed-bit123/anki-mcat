@@ -22,191 +22,11 @@ from aqt.utils import disable_help_button, restoreGeom, saveGeom, showInfo, tool
 if TYPE_CHECKING:
     from aqt.main import AnkiQt
 
+# These two tags are the seam with the engine seeder (rslib/src/speedrun/seed.rs):
+# questions carry QUESTION_TAG, flashcards carry FLASHCARD_TAG. The notetype,
+# fields, and decks are all created engine-side now, so the UI only needs the tags.
 QUESTION_TAG = "mcat-question"
-NOTETYPE_NAME = "MCAT Practice Question"
-PRACTICE_DECK = "MCAT Practice"
-FIELDS = ["Topic", "Stem", "A", "B", "C", "D", "Answer", "Explanation"]
-
-# Original, hand-authored MCAT-style discrete questions used to seed the bank for
-# a demo. (topic, stem, A, B, C, D, answer-letter, explanation)
-SEED_QUESTIONS: list[tuple[str, str, str, str, str, str, str, str]] = [
-    (
-        "Biochemistry",
-        "An enzyme follows Michaelis-Menten kinetics. A competitive inhibitor is added. "
-        "How are Km and Vmax affected?",
-        "Km increases, Vmax unchanged",
-        "Km decreases, Vmax unchanged",
-        "Km unchanged, Vmax decreases",
-        "Km increases, Vmax decreases",
-        "A",
-        "Competitive inhibitors raise the apparent Km (more substrate needed) but Vmax is "
-        "unchanged because high substrate outcompetes the inhibitor.",
-    ),
-    (
-        "Biochemistry",
-        "Which amino acid is most likely to be found buried in the hydrophobic core of a "
-        "globular protein in aqueous solution?",
-        "Lysine",
-        "Glutamate",
-        "Valine",
-        "Serine",
-        "C",
-        "Valine has a nonpolar aliphatic side chain, so it preferentially partitions away from "
-        "water into the protein core.",
-    ),
-    (
-        "Biology",
-        "During which phase of the cell cycle is DNA replicated?",
-        "G1",
-        "S",
-        "G2",
-        "M",
-        "B",
-        "DNA synthesis (replication) occurs during S phase, between the G1 and G2 gap phases.",
-    ),
-    (
-        "Biology",
-        "A nonsense mutation most directly results in which of the following?",
-        "A silent change with no effect on the protein",
-        "Substitution of one amino acid for another",
-        "A premature stop codon and truncated protein",
-        "A shift in the downstream reading frame",
-        "C",
-        "A nonsense mutation converts a codon into a stop codon, prematurely terminating "
-        "translation and yielding a truncated protein.",
-    ),
-    (
-        "General Chemistry",
-        "What is the pH of a 0.001 M solution of HCl (a strong acid) at 25 degrees C?",
-        "1",
-        "3",
-        "7",
-        "11",
-        "B",
-        "HCl fully dissociates, so [H+] = 1e-3 M and pH = -log(1e-3) = 3.",
-    ),
-    (
-        "General Chemistry",
-        "Which quantum number determines the shape of an orbital?",
-        "Principal (n)",
-        "Azimuthal / angular momentum (l)",
-        "Magnetic (m_l)",
-        "Spin (m_s)",
-        "B",
-        "The azimuthal quantum number l defines the subshell and thus orbital shape "
-        "(s, p, d, f).",
-    ),
-    (
-        "Organic Chemistry",
-        "An SN2 reaction proceeds fastest with which substrate?",
-        "Tertiary alkyl halide",
-        "Primary alkyl halide",
-        "A bulky neopentyl halide",
-        "An aryl halide",
-        "B",
-        "SN2 needs backside attack; primary substrates have the least steric hindrance, so they "
-        "react fastest.",
-    ),
-    (
-        "Physics",
-        "A 2 kg object accelerates at 3 m/s^2. What net force acts on it?",
-        "1.5 N",
-        "5 N",
-        "6 N",
-        "9 N",
-        "C",
-        "By Newton's second law F = ma = 2 kg x 3 m/s^2 = 6 N.",
-    ),
-    (
-        "Physics",
-        "Light passes from air into glass (higher index of refraction). What happens to its "
-        "speed and wavelength?",
-        "Both increase",
-        "Both decrease",
-        "Speed decreases, wavelength unchanged",
-        "Speed increases, wavelength decreases",
-        "B",
-        "In a denser medium light slows down and, since frequency is fixed, its wavelength "
-        "decreases proportionally.",
-    ),
-    (
-        "Psychology",
-        "Classical conditioning was first systematically described by which researcher?",
-        "B. F. Skinner",
-        "Ivan Pavlov",
-        "Jean Piaget",
-        "Albert Bandura",
-        "B",
-        "Pavlov demonstrated classical conditioning through his experiments pairing a neutral "
-        "stimulus with an unconditioned stimulus.",
-    ),
-    (
-        "Psychology",
-        "A drug that blocks reuptake of a neurotransmitter will most directly cause what at the "
-        "synapse?",
-        "Less neurotransmitter in the cleft",
-        "More neurotransmitter remaining in the cleft",
-        "Destruction of the postsynaptic receptor",
-        "Reversal of the action potential",
-        "B",
-        "Blocking reuptake leaves more neurotransmitter in the synaptic cleft, prolonging its "
-        "signaling.",
-    ),
-    (
-        "Sociology",
-        "A person changing their behavior because they know they are being observed exemplifies "
-        "which effect?",
-        "Hawthorne effect",
-        "Halo effect",
-        "Bystander effect",
-        "Placebo effect",
-        "A",
-        "The Hawthorne effect is the alteration of behavior due to awareness of being observed.",
-    ),
-]
-
-
-def ensure_notetype(col) -> dict:
-    """Return the MCAT question notetype, creating it if needed."""
-    existing = col.models.by_name(NOTETYPE_NAME)
-    if existing:
-        return existing
-    mm = col.models
-    nt = mm.new(NOTETYPE_NAME)
-    for field_name in FIELDS:
-        mm.add_field(nt, mm.new_field(field_name))
-    template = mm.new_template("Card 1")
-    template["qfmt"] = "{{Stem}}"
-    template["afmt"] = "{{Answer}}. {{Explanation}}"
-    mm.add_template(nt, template)
-    mm.add(nt)
-    return mm.by_name(NOTETYPE_NAME)
-
-
-def seed_demo_questions(col) -> int:
-    """Add the hand-authored demo questions. Returns the number added.
-
-    Each question goes in a per-topic subdeck (``MCAT Practice::<Topic>``) because
-    the engine treats the deck as the question's topic; this makes the
-    weakness-weighted ordering differentiate topics instead of lumping them.
-    """
-    nt = ensure_notetype(col)
-    added = 0
-    for topic, stem, a, b, c, d, answer, explanation in SEED_QUESTIONS:
-        deck_id = col.decks.id(f"{PRACTICE_DECK}::{topic}")
-        note = col.new_note(nt)
-        note["Topic"] = topic
-        note["Stem"] = stem
-        note["A"] = a
-        note["B"] = b
-        note["C"] = c
-        note["D"] = d
-        note["Answer"] = answer
-        note["Explanation"] = explanation
-        note.tags.append(QUESTION_TAG)
-        col.add_note(note, deck_id)
-        added += 1
-    return added
+FLASHCARD_TAG = "mcat-flashcard"
 
 
 class _Question:
@@ -227,10 +47,14 @@ class SpeedrunDialog(QDialog):
         disable_help_button(self)
         self.resize(640, 720)
 
-        self.questions: list[_Question] = []
-        self.priority_by_card: dict[int, float] = {}
-        self.index = 0
-        self.correct_count = 0
+        # Open-ended, one-question-at-a-time practice driven by concept-level
+        # FSRS scheduling in the engine (speedrun_next_question).
+        self.current_question: _Question | None = None
+        self.session_count = 0
+        self.session_correct = 0
+        self.answered_today = 0
+        self.rec_min = 0
+        self.rec_max = 0
         self.answered = False
 
         self._build_ui()
@@ -258,6 +82,11 @@ class SpeedrunDialog(QDialog):
         layout.addWidget(line)
 
         # Practice area.
+        self.daily_label = QLabel("")
+        self.daily_label.setWordWrap(True)
+        self.daily_label.setStyleSheet("font-size: 11px;")
+        layout.addWidget(self.daily_label)
+
         self.progress_label = QLabel("")
         layout.addWidget(self.progress_label)
 
@@ -265,7 +94,7 @@ class SpeedrunDialog(QDialog):
         self.topic_label.setStyleSheet("font-weight: bold; color: palette(mid);")
         layout.addWidget(self.topic_label)
 
-        self.stem_label = QLabel("Start a practice set to begin.")
+        self.stem_label = QLabel("Start practice to begin.")
         self.stem_label.setWordWrap(True)
         self.stem_label.setTextFormat(Qt.TextFormat.RichText)
         self.stem_label.setMinimumHeight(80)
@@ -278,9 +107,24 @@ class SpeedrunDialog(QDialog):
         for letter in ("A", "B", "C", "D"):
             btn = QPushButton("")
             btn.setMinimumHeight(36)
+            # Stop Qt from styling the first answer as the dialog's "default"
+            # button (macOS draws that highlighted, making A look pre-selected).
+            btn.setAutoDefault(False)
+            btn.setDefault(False)
             btn.clicked.connect(lambda _checked=False, l=letter: self.on_answer(l))
             layout.addWidget(btn)
             self.option_buttons[letter] = btn
+
+        self.dont_know_button = QPushButton("I don't know / I'm guessing")
+        self.dont_know_button.setAutoDefault(False)
+        self.dont_know_button.setDefault(False)
+        self.dont_know_button.setToolTip(
+            "Don't guess. If you're not sure, mark this instead of picking an answer. "
+            "It counts as not known (like a wrong answer) and reveals the explanation, so a "
+            "lucky guess can never inflate your Performance or Readiness."
+        )
+        self.dont_know_button.clicked.connect(self.on_dont_know)
+        layout.addWidget(self.dont_know_button)
 
         self.feedback_label = QLabel("")
         self.feedback_label.setWordWrap(True)
@@ -293,26 +137,35 @@ class SpeedrunDialog(QDialog):
 
         layout.addStretch(1)
 
-        # Bottom controls.
-        self.weighted_check = QCheckBox(
-            "Weakness-weighted order (points at stake)"
-        )
-        self.weighted_check.setChecked(True)
-        self.weighted_check.setToolTip(
-            "On: the engine ranks questions by topic points x weakness x need "
-            "(unseen / recently missed / stale first), the question analogue of "
-            "the points-at-stake review queue.\nOff: plain random order."
-        )
-        layout.addWidget(self.weighted_check)
-
         controls = QHBoxLayout()
-        self.start_button = QPushButton("Start practice set")
-        self.start_button.clicked.connect(self.start_set)
+        self.start_button = QPushButton("Start practice")
+        self.start_button.setToolTip(
+            "Open-ended practice: questions are served one at a time by "
+            "concept-level FSRS scheduling (whichever concept is most due, "
+            "weighted by MCAT yield). Go as long as you like — a recommended "
+            "daily range is shown above."
+        )
+        self.start_button.clicked.connect(self.start_practice)
         controls.addWidget(self.start_button)
 
-        self.seed_button = QPushButton("Seed demo questions")
-        self.seed_button.clicked.connect(self.on_seed)
-        controls.addWidget(self.seed_button)
+        self.test_button = QPushButton("Take timed test")
+        self.test_button.setToolTip(
+            "Sit a timed, exam-style block: pick a subject (or mixed) and a "
+            "question count, answer under a clock with no feedback until the end, "
+            "then get a scored summary. Every answered question still feeds your "
+            "Performance and Readiness scores."
+        )
+        self.test_button.clicked.connect(self.on_take_test)
+        controls.addWidget(self.test_button)
+
+        self.setup_button = QPushButton("Set up MCAT content")
+        self.setup_button.setToolTip(
+            "Add the full built-in MCAT bank: flashcards (every subject) plus "
+            "application questions, all from the shared engine. The MCAT deck is "
+            "set to interleaved, weakness-weighted study. Idempotent."
+        )
+        self.setup_button.clicked.connect(self.on_setup_mcat)
+        controls.addWidget(self.setup_button)
 
         controls.addStretch(1)
         close_button = QPushButton("Close")
@@ -377,11 +230,12 @@ class SpeedrunDialog(QDialog):
                 f"<span style='font-size:11px'>{rdy.reason}</span>"
             )
 
-    # Practice flow -----------------------------------------------------------
+    # Practice flow (open-ended, one question at a time) ----------------------
 
-    def _load_questions_random(self) -> list[_Question]:
+    def _all_questions(self) -> list[_Question]:
+        """Every application question in the bank, as `_Question` objects."""
         col = self.mw.col
-        questions: list[_Question] = []
+        out: list[_Question] = []
         for nid in col.find_notes(f"tag:{QUESTION_TAG}"):
             note = col.get_note(nid)
             if "Stem" not in note or not note["Stem"]:
@@ -389,62 +243,72 @@ class SpeedrunDialog(QDialog):
             card_ids = note.card_ids()
             if not card_ids:
                 continue
-            questions.append(_Question(card_ids[0], note))
-        random.shuffle(questions)
-        return questions
+            out.append(_Question(card_ids[0], note))
+        return out
 
-    def _load_questions_weighted(self) -> list[_Question]:
-        """Order from the engine's points-at-stake question ranking."""
-        col = self.mw.col
-        # Single-field responses are auto-unwrapped, so this is the repeated list.
-        resp = col._backend.speedrun_next_questions()
-        questions: list[_Question] = []
-        self.priority_by_card = {}
-        for item in resp:
-            try:
-                card = col.get_card(item.card_id)
-            except Exception:
-                continue
-            note = card.note()
-            if "Stem" not in note or not note["Stem"]:
-                continue
-            questions.append(_Question(item.card_id, note))
-            self.priority_by_card[item.card_id] = item.priority
-        return questions
-
-    def start_set(self) -> None:
-        self.priority_by_card = {}
-        if self.weighted_check.isChecked():
-            self.questions = self._load_questions_weighted()
-        else:
-            self.questions = self._load_questions_random()
-        if not self.questions:
+    def on_take_test(self) -> None:
+        questions = self._all_questions()
+        if not questions:
             showInfo(
-                "No application questions found. Click “Seed demo questions” to add a "
-                "starter set, or import your own MCAT-style questions.",
+                "No questions yet. Click “Set up MCAT content” to load the bank.",
                 parent=self,
             )
             return
-        self.index = 0
-        self.correct_count = 0
-        self.show_question()
+        setup = TestSetupDialog(self, questions)
+        if not setup.exec():
+            return
+        config = setup.result_config()
+        runner = TestRunnerDialog(self.mw, config, self)
+        runner.exec()
+        # Attempts logged during the test feed the engine; refresh the panel.
+        self.refresh_scores()
 
-    def show_question(self) -> None:
+    def start_practice(self) -> None:
+        self.session_count = 0
+        self.session_correct = 0
+        self.next_button.setText("Next question")
+        self.load_next_question()
+
+    def load_next_question(self) -> None:
+        col = self.mw.col
+        resp = col._backend.speedrun_next_question()
+        self.answered_today = resp.answered_today
+        self.rec_min = resp.recommended_min
+        self.rec_max = resp.recommended_max
+        self._update_daily_label()
+        if not resp.has_question:
+            showInfo(
+                "No application questions found. Click “Set up MCAT content” to load "
+                "the built-in question bank, or import your own MCAT-style questions.",
+                parent=self,
+            )
+            return
+        try:
+            card = col.get_card(resp.card_id)
+        except Exception:
+            self.stem_label.setText("Could not load the next question.")
+            return
+        self.current_question = _Question(resp.card_id, card.note())
+        # "Why this surfaced": the concept's FSRS recall estimate.
+        if resp.attempts == 0 and resp.concept_retrievability <= 0.0:
+            why = "new concept"
+        else:
+            why = f"concept recall ≈ {resp.concept_retrievability * 100:.0f}%"
+        self._show_current(why)
+
+    def _show_current(self, why: str) -> None:
         self.answered = False
-        q = self.questions[self.index]
-        extra = ""
-        if self.weighted_check.isChecked():
-            priority = self.priority_by_card.get(q.card_id)
-            if priority is not None:
-                extra = f"  •  points-at-stake priority {priority:.2f}"
+        q = self.current_question
+        assert q is not None
         self.progress_label.setText(
-            f"Question {self.index + 1} of {len(self.questions)}  •  "
-            f"{self.correct_count} correct so far{extra}"
+            f"This session: {self.session_count} answered  •  "
+            f"{self.session_correct} correct"
         )
-        self.topic_label.setText(q.topic)
+        self.topic_label.setText(f"{q.topic}  ·  {why}")
         self.stem_label.setText(q.stem)
         self.feedback_label.setText("")
         self.next_button.setEnabled(False)
+        self.dont_know_button.setEnabled(True)
         for letter, btn in self.option_buttons.items():
             text = q.options.get(letter, "")
             btn.setText(f"{letter}.  {text}")
@@ -452,18 +316,21 @@ class SpeedrunDialog(QDialog):
             btn.setStyleSheet("")
 
     def on_answer(self, letter: str) -> None:
-        if self.answered:
+        if self.answered or self.current_question is None:
             return
         self.answered = True
-        q = self.questions[self.index]
+        q = self.current_question
         correct = letter == q.answer
+        self.session_count += 1
+        self.answered_today += 1
         if correct:
-            self.correct_count += 1
+            self.session_correct += 1
 
         self.mw.col._backend.speedrun_record_attempt(
             card_id=q.card_id, correct=correct
         )
 
+        self.dont_know_button.setEnabled(False)
         for opt_letter, btn in self.option_buttons.items():
             btn.setEnabled(False)
             if opt_letter == q.answer:
@@ -477,55 +344,99 @@ class SpeedrunDialog(QDialog):
             else f"<b style='color:#c62828'>Incorrect.</b> Answer: {q.answer}."
         )
         self.feedback_label.setText(f"{verdict}<br>{q.explanation}")
+        self.progress_label.setText(
+            f"This session: {self.session_count} answered  •  "
+            f"{self.session_correct} correct"
+        )
         self.next_button.setEnabled(True)
+        self._update_daily_label()
+        self.refresh_scores()
+
+    def on_dont_know(self) -> None:
+        if self.answered or self.current_question is None:
+            return
+        self.answered = True
+        q = self.current_question
+        # An honest "I don't know" counts as not known (incorrect), so a lucky
+        # guess can never inflate Performance/Readiness. Still reveal the answer.
+        self.session_count += 1
+        self.answered_today += 1
+        self.mw.col._backend.speedrun_record_attempt(card_id=q.card_id, correct=False)
+
+        self.dont_know_button.setEnabled(False)
+        for opt_letter, btn in self.option_buttons.items():
+            btn.setEnabled(False)
+            if opt_letter == q.answer:
+                btn.setStyleSheet("background-color: #cdebc5;")
+
+        self.feedback_label.setText(
+            "<b style='color:#ef6c00'>Marked “don’t know”.</b> Counts as not known, so guessing "
+            f"can’t inflate your scores.<br>Answer: {q.answer}.<br>{q.explanation}"
+        )
+        self.progress_label.setText(
+            f"This session: {self.session_count} answered  •  "
+            f"{self.session_correct} correct"
+        )
+        self.next_button.setEnabled(True)
+        self._update_daily_label()
         self.refresh_scores()
 
     def on_next(self) -> None:
-        self.index += 1
-        if self.index >= len(self.questions):
-            tooltip(
-                f"Set complete: {self.correct_count}/{len(self.questions)} correct.",
-                parent=self,
-            )
-            self._finish_set()
-            return
-        self.show_question()
+        self.load_next_question()
 
-    def _finish_set(self) -> None:
-        self.progress_label.setText(
-            f"Set complete: {self.correct_count}/{len(self.questions)} correct."
+    def _update_daily_label(self) -> None:
+        done = self.answered_today
+        lo, hi = self.rec_min, self.rec_max
+        if lo and done < lo:
+            nudge = f"— {lo - done} to today’s minimum"
+            color = "palette(mid)"
+        elif hi and done >= hi:
+            nudge = "— daily max reached; more today has diminishing returns"
+            color = "#c62828"
+        else:
+            nudge = "— minimum reached; keep going or stop anytime"
+            color = "#2e7d32"
+        self.daily_label.setText(
+            f"<span style='color:{color}'>Today: {done} answered "
+            f"(recommended {lo}–{hi}) {nudge}</span>"
         )
-        self.topic_label.setText("")
-        self.stem_label.setText("Start another practice set to keep going.")
-        self.feedback_label.setText("")
-        self.next_button.setEnabled(False)
-        for btn in self.option_buttons.values():
-            btn.setText("")
-            btn.setEnabled(False)
-            btn.setStyleSheet("")
-        self.refresh_scores()
 
-    def on_seed(self) -> None:
-        existing = len(self.mw.col.find_notes(f"tag:{QUESTION_TAG}"))
-        if existing:
+    def on_setup_mcat(self) -> None:
+        added = self.mw.col._backend.speedrun_seed_builtin()
+        added = getattr(added, "val", added)
+        self.mw.reset()
+        if added:
+            cards = len(self.mw.col.find_notes(f"tag:{FLASHCARD_TAG}"))
+            questions = len(self.mw.col.find_notes(f"tag:{QUESTION_TAG}"))
             showInfo(
-                f"You already have {existing} application question(s). "
-                "Seeding is only needed on an empty bank.",
+                f"Set up the built-in MCAT bank: {cards} flashcards in the “MCAT” "
+                f"deck and {questions} practice questions in “MCAT Practice”, across "
+                "every subject. Studying the MCAT deck interleaves topics with the "
+                "weakness-weighted points-at-stake order.",
                 parent=self,
             )
-            return
-        added = seed_demo_questions(self.mw.col)
-        tooltip(f"Added {added} demo questions.", parent=self)
+        else:
+            tooltip("MCAT content is already set up.", parent=self)
         self._update_practice_controls()
+        self.refresh_scores()
 
     def _update_practice_controls(self) -> None:
         count = len(self.mw.col.find_notes(f"tag:{QUESTION_TAG}"))
         self.start_button.setEnabled(count > 0)
+        self.test_button.setEnabled(count > 0)
         if count == 0:
             self.stem_label.setText(
-                "No application questions yet. Click “Seed demo questions” to add a "
-                "starter set."
+                "No application questions yet. Click “Set up MCAT content” to load "
+                "the built-in bank."
             )
+            self.daily_label.setText("")
+        else:
+            # Show today's pacing before the first question is drawn.
+            resp = self.mw.col._backend.speedrun_next_question()
+            self.answered_today = resp.answered_today
+            self.rec_min = resp.recommended_min
+            self.rec_max = resp.recommended_max
+            self._update_daily_label()
 
     def reject(self) -> None:
         saveGeom(self, "speedrun")
@@ -534,6 +445,372 @@ class SpeedrunDialog(QDialog):
     def accept(self) -> None:
         saveGeom(self, "speedrun")
         super().accept()
+
+
+class TestSetupDialog(QDialog):
+    """Small form to configure a timed, exam-style block: subject scope, number
+    of questions, and an optional countdown."""
+
+    ALL_SUBJECTS = "All subjects (mixed)"
+
+    def __init__(self, parent: QDialog, questions: list[_Question]) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Set up timed test")
+        disable_help_button(self)
+        self._questions = questions
+        self._subjects = sorted({q.topic for q in questions if q.topic})
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("<b>Timed practice test</b>"))
+
+        form = QFormLayout()
+        self.scope_combo = QComboBox()
+        self.scope_combo.addItem(f"{self.ALL_SUBJECTS} ({len(questions)})", None)
+        for subject in self._subjects:
+            n = sum(1 for q in questions if q.topic == subject)
+            self.scope_combo.addItem(f"{subject} ({n})", subject)
+        self.scope_combo.currentIndexChanged.connect(self._on_scope_changed)
+        form.addRow("Subject", self.scope_combo)
+
+        self.count_spin = QSpinBox()
+        self.count_spin.setMinimum(1)
+        self.count_spin.valueChanged.connect(self._update_time_suggestion)
+        form.addRow("Questions", self.count_spin)
+
+        timed_row = QHBoxLayout()
+        self.timed_check = QCheckBox("Timed")
+        self.timed_check.setChecked(True)
+        self.timed_check.toggled.connect(self._on_timed_toggled)
+        timed_row.addWidget(self.timed_check)
+        self.minutes_spin = QSpinBox()
+        self.minutes_spin.setRange(1, 600)
+        timed_row.addWidget(self.minutes_spin)
+        timed_row.addWidget(QLabel("minutes"))
+        timed_row.addStretch(1)
+        form.addRow("Time limit", timed_row)
+        layout.addLayout(form)
+
+        note = QLabel(
+            "No feedback until you finish — just like a real section. Unanswered "
+            "questions are scored as incorrect but are not logged against your "
+            "Performance score."
+        )
+        note.setWordWrap(True)
+        note.setStyleSheet("color: palette(mid); font-size: 11px;")
+        layout.addWidget(note)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Start test")
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        # Initialise counts/time for the default (all subjects) scope.
+        self._on_scope_changed()
+
+    def _current_pool(self) -> list[_Question]:
+        subject = self.scope_combo.currentData()
+        if subject is None:
+            return list(self._questions)
+        return [q for q in self._questions if q.topic == subject]
+
+    def _on_scope_changed(self) -> None:
+        pool_size = max(1, len(self._current_pool()))
+        self.count_spin.setMaximum(pool_size)
+        default = min(20, pool_size)
+        self.count_spin.setValue(default)
+        self._update_time_suggestion()
+
+    def _on_timed_toggled(self, checked: bool) -> None:
+        self.minutes_spin.setEnabled(checked)
+
+    def _update_time_suggestion(self) -> None:
+        # ~90 seconds per question is a realistic MCAT pace.
+        self.minutes_spin.setValue(max(1, round(self.count_spin.value() * 1.5)))
+
+    def result_config(self) -> dict:
+        pool = self._current_pool()
+        count = min(self.count_spin.value(), len(pool))
+        subject = self.scope_combo.currentData()
+        return {
+            "pool": pool,
+            "count": count,
+            "timed": self.timed_check.isChecked(),
+            "seconds": self.minutes_spin.value() * 60,
+            "label": subject or self.ALL_SUBJECTS,
+        }
+
+
+class TestRunnerDialog(QDialog):
+    """Runs a timed, exam-style block with no per-question feedback, then shows a
+    scored summary and lets you review every question."""
+
+    SELECTED_STYLE = "background-color: #cfe3f3;"
+
+    def __init__(self, mw: AnkiQt, config: dict, parent: QDialog) -> None:
+        super().__init__(parent)
+        self.mw = mw
+        self.setWindowTitle("MCAT timed test")
+        disable_help_button(self)
+        self.resize(680, 780)
+
+        self.questions: list[_Question] = random.sample(config["pool"], config["count"])
+        self.label: str = config["label"]
+        self.answers: dict[int, str] = {}
+        self.index = 0
+        self.timed: bool = config["timed"]
+        self.total_seconds: int = config["seconds"]
+        self.remaining: int = config["seconds"]
+        self.finished = False
+        self.timer: QTimer | None = None
+
+        self._build_ui()
+        self._show_question()
+        if self.timed:
+            self.timer = QTimer(self)
+            self.timer.timeout.connect(self._tick)
+            self.timer.start(1000)
+            self._update_timer_label()
+
+    # UI ----------------------------------------------------------------------
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        self.stack = QStackedWidget()
+        layout.addWidget(self.stack)
+
+        # Page 0: the test.
+        test_page = QWidget()
+        tp = QVBoxLayout(test_page)
+
+        top = QHBoxLayout()
+        self.progress_label = QLabel("")
+        top.addWidget(self.progress_label)
+        top.addStretch(1)
+        self.timer_label = QLabel("")
+        self.timer_label.setStyleSheet("font-weight: bold;")
+        top.addWidget(self.timer_label)
+        tp.addLayout(top)
+
+        self.topic_label = QLabel("")
+        self.topic_label.setStyleSheet("font-weight: bold; color: palette(mid);")
+        tp.addWidget(self.topic_label)
+
+        self.stem_label = QLabel("")
+        self.stem_label.setWordWrap(True)
+        self.stem_label.setTextFormat(Qt.TextFormat.RichText)
+        self.stem_label.setMinimumHeight(90)
+        self.stem_label.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        )
+        tp.addWidget(self.stem_label)
+
+        self.option_buttons: dict[str, QPushButton] = {}
+        for letter in ("A", "B", "C", "D"):
+            btn = QPushButton("")
+            btn.setMinimumHeight(36)
+            btn.setAutoDefault(False)
+            btn.setDefault(False)
+            btn.clicked.connect(lambda _checked=False, l=letter: self.on_select(l))
+            tp.addWidget(btn)
+            self.option_buttons[letter] = btn
+
+        tp.addStretch(1)
+
+        nav = QHBoxLayout()
+        self.prev_button = QPushButton("Previous")
+        self.prev_button.clicked.connect(self.on_prev)
+        nav.addWidget(self.prev_button)
+        self.next_button = QPushButton("Next")
+        self.next_button.clicked.connect(self.on_next)
+        nav.addWidget(self.next_button)
+        nav.addStretch(1)
+        self.finish_button = QPushButton("Finish test")
+        self.finish_button.clicked.connect(lambda: self.finish(auto=False))
+        nav.addWidget(self.finish_button)
+        tp.addLayout(nav)
+
+        self.stack.addWidget(test_page)
+
+        # Page 1: the summary (built on finish).
+        summary_page = QWidget()
+        sp = QVBoxLayout(summary_page)
+        self.summary_header = QLabel("")
+        self.summary_header.setWordWrap(True)
+        self.summary_header.setTextFormat(Qt.TextFormat.RichText)
+        sp.addWidget(self.summary_header)
+        self.review = QTextEdit()
+        self.review.setReadOnly(True)
+        sp.addWidget(self.review, 1)
+        close_row = QHBoxLayout()
+        close_row.addStretch(1)
+        close_button = QPushButton("Done")
+        close_button.clicked.connect(self.accept)
+        close_row.addWidget(close_button)
+        sp.addLayout(close_row)
+        self.stack.addWidget(summary_page)
+
+    # Test flow ---------------------------------------------------------------
+
+    def _show_question(self) -> None:
+        q = self.questions[self.index]
+        answered = len(self.answers)
+        self.progress_label.setText(
+            f"Question {self.index + 1} of {len(self.questions)}  •  "
+            f"{answered} answered"
+        )
+        self.topic_label.setText(q.topic)
+        self.stem_label.setText(q.stem)
+        selected = self.answers.get(self.index)
+        for letter, btn in self.option_buttons.items():
+            text = q.options.get(letter, "")
+            btn.setText(f"{letter}.  {text}")
+            btn.setEnabled(bool(text))
+            btn.setStyleSheet(self.SELECTED_STYLE if letter == selected else "")
+        self.prev_button.setEnabled(self.index > 0)
+        self.next_button.setText(
+            "Next" if self.index < len(self.questions) - 1 else "Review answers"
+        )
+
+    def on_select(self, letter: str) -> None:
+        self.answers[self.index] = letter
+        for opt_letter, btn in self.option_buttons.items():
+            btn.setStyleSheet(self.SELECTED_STYLE if opt_letter == letter else "")
+        self.progress_label.setText(
+            f"Question {self.index + 1} of {len(self.questions)}  •  "
+            f"{len(self.answers)} answered"
+        )
+
+    def on_prev(self) -> None:
+        if self.index > 0:
+            self.index -= 1
+            self._show_question()
+
+    def on_next(self) -> None:
+        if self.index < len(self.questions) - 1:
+            self.index += 1
+            self._show_question()
+        else:
+            self.finish(auto=False)
+
+    def _tick(self) -> None:
+        self.remaining -= 1
+        if self.remaining <= 0:
+            self.remaining = 0
+            self._update_timer_label()
+            self.finish(auto=True)
+            return
+        self._update_timer_label()
+
+    def _update_timer_label(self) -> None:
+        if not self.timed:
+            self.timer_label.setText("Untimed")
+            return
+        mins, secs = divmod(max(0, self.remaining), 60)
+        color = "#c62828" if self.remaining <= 30 else "palette(text)"
+        self.timer_label.setText(
+            f"<span style='color:{color}'>Time left {mins:02d}:{secs:02d}</span>"
+        )
+        self.timer_label.setTextFormat(Qt.TextFormat.RichText)
+
+    # Finish + summary --------------------------------------------------------
+
+    def finish(self, auto: bool) -> None:
+        if self.finished:
+            return
+        self.finished = True
+        if self.timer is not None:
+            self.timer.stop()
+
+        correct = 0
+        answered = 0
+        by_subject: dict[str, list[int]] = {}
+        for i, q in enumerate(self.questions):
+            sel = self.answers.get(i)
+            is_correct = sel is not None and sel == q.answer
+            stats = by_subject.setdefault(q.topic or "—", [0, 0, 0])
+            stats[2] += 1  # total in this subject
+            if sel is not None:
+                answered += 1
+                stats[1] += 1  # answered
+                # Only real attempts feed the engine's Performance/Readiness.
+                self.mw.col._backend.speedrun_record_attempt(
+                    card_id=q.card_id, correct=is_correct
+                )
+                if is_correct:
+                    correct += 1
+                    stats[0] += 1
+
+        self._build_summary(correct, answered, by_subject, auto)
+        self.stack.setCurrentIndex(1)
+
+    def _build_summary(
+        self,
+        correct: int,
+        answered: int,
+        by_subject: dict[str, list[int]],
+        auto: bool,
+    ) -> None:
+        total = len(self.questions)
+        pct = (correct / total * 100) if total else 0.0
+        blank = total - answered
+        used = self.total_seconds - self.remaining if self.timed else None
+
+        head = f"<h2>Test complete — {correct}/{total} correct ({pct:.0f}%)</h2>"
+        parts = [f"Scope: {self.label}."]
+        if blank:
+            parts.append(f"{blank} left blank (scored incorrect).")
+        if auto:
+            parts.append("<b>Time expired.</b>")
+        if used is not None:
+            mins, secs = divmod(max(0, used), 60)
+            parts.append(f"Time used: {mins:02d}:{secs:02d}.")
+        subtitle = " ".join(parts)
+
+        rows = []
+        for subject in sorted(by_subject):
+            c, a, t = by_subject[subject]
+            sp = (c / t * 100) if t else 0.0
+            rows.append(
+                f"<tr><td>{subject}</td><td>&nbsp;{c}/{t}</td>"
+                f"<td>&nbsp;{sp:.0f}%</td></tr>"
+            )
+        breakdown = (
+            "<table><tr><th align='left'>Subject</th><th>Correct</th>"
+            f"<th>&nbsp;%</th></tr>{''.join(rows)}</table>"
+        )
+        self.summary_header.setText(f"{head}<p>{subtitle}</p>{breakdown}")
+
+        # Full review, so mistakes are learnable.
+        blocks = []
+        for i, q in enumerate(self.questions):
+            sel = self.answers.get(i)
+            correct_text = q.options.get(q.answer, "")
+            if sel is None:
+                verdict = "<span style='color:#c62828'>Left blank</span>"
+                your = "—"
+            elif sel == q.answer:
+                verdict = "<span style='color:#2e7d32'>Correct</span>"
+                your = f"{sel}. {q.options.get(sel, '')}"
+            else:
+                verdict = "<span style='color:#c62828'>Incorrect</span>"
+                your = f"{sel}. {q.options.get(sel, '')}"
+            blocks.append(
+                f"<p><b>Q{i + 1} — {q.topic}</b> ({verdict})<br>"
+                f"{q.stem}<br>"
+                f"<b>Your answer:</b> {your}<br>"
+                f"<b>Correct:</b> {q.answer}. {correct_text}<br>"
+                f"<i>{q.explanation}</i></p><hr>"
+            )
+        self.review.setHtml("".join(blocks))
+
+    def reject(self) -> None:
+        # Closing mid-test: stop the clock; nothing is logged.
+        if self.timer is not None:
+            self.timer.stop()
+        super().reject()
 
 
 def show_speedrun(mw: AnkiQt) -> None:

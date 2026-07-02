@@ -29,12 +29,15 @@ def _add_flashcard(col):
     return c.id
 
 
-def _add_question(col):
+def _add_question(col, deck_id=None):
     note = col.newNote()
     note["Front"] = "stem"
     note["Back"] = "answer"
     note.tags.append(QUESTION_TAG)
-    col.addNote(note)
+    if deck_id is None:
+        col.addNote(note)
+    else:
+        col.add_note(note, deck_id)
     return note.cards()[0].id
 
 
@@ -43,9 +46,13 @@ def test_three_scores_end_to_end():
     try:
         for _ in range(25):
             _add_flashcard(col)
-        for _ in range(12):
-            q = _add_question(col)
-            col._backend.speedrun_record_attempt(card_id=q, correct=True)
+        # 12 questions across 3 topics (4 each) so the per-topic depth gate for
+        # Performance/Readiness is satisfied.
+        for name in ("T1", "T2", "T3"):
+            did = col.decks.id(name)
+            for _ in range(4):
+                q = _add_question(col, did)
+                col._backend.speedrun_record_attempt(card_id=q, correct=True)
 
         s = col._backend.speedrun_scores()
 

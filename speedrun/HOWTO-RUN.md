@@ -43,6 +43,19 @@ PY
 ```
 Expected: `speedrun: scheduler engine alive (anki 26.05)`.
 
+> **Build gotcha (pure-Rust edits).** `just build`/`just run` only relink the pylib
+> Rust bridge when a *tracked* input changes (proto, `Cargo.toml`, etc.). Editing only
+> `rslib/src/**.rs` — or adding a new `.rs` file — may report "up to date" and ship a
+> **stale** `.so`. Force a rebuild by touching a tracked input first:
+> `touch rslib/Cargo.toml pylib/rsbridge/lib.rs && just build`. (Verify: run the headless
+> smoke above and confirm new behavior appears.)
+
+**MCAT Speedrun panel** (Tools → MCAT Speedrun). "Set up MCAT content" seeds the bank.
+"Start practice" is now an **open-ended, one-question-at-a-time** runner: each question is
+chosen by concept-level FSRS (`speedrun_next_question`) — the most-due concept, weighted by
+MCAT yield, interleaved — with a daily pacing label (recommended 20–60/day, not enforced).
+"Take timed test" is the separate exam-block mode.
+
 ## B) Android emulator (on your Mac, with a window)
 > Headless (`-no-window`) boot is unreliable from automation; run it WITH a
 > window. Easiest is Android Studio, but the CLI below works too.
@@ -70,6 +83,19 @@ adb logcat -d | grep SPEEDRUN
 ```
 (The string comes from our `speedrun_ping()` in `rslib`, compiled into
 `librsdroid.so`, called via the generated `Backend.speedrunPing()` binding.)
+
+### Built-in MCAT flashcards + interleaving (desktop + mobile)
+In the MCAT Speedrun screen (desktop Tools → MCAT Speedrun, or mobile overflow →
+MCAT Speedrun) click **"Set up MCAT flashcards"**. This calls the shared engine's
+`speedrun_seed_builtin` RPC once (idempotent) and:
+- creates an **`MCAT` deck with a subdeck per subject** (`MCAT::Biochemistry`, …,
+  7 subjects × 8 built-in cards = 56), all tagged `mcat-flashcard`;
+- sets that deck to study with the **points-at-stake review order + interleaving**
+  (reviews are weakest/high-yield-first but topics are mixed, never blocked) and
+  **RANDOM_CARDS** new-card gather so the first pass also pulls from all topics;
+- seeds high-yield topic points (biochem 5, bio/psych 4, gchem/phys/soc 3, orgo 2).
+Then just study the **`MCAT`** deck — it interleaves every subject. To watch the
+interleave end-to-end headlessly, run `pytest pylib/tests/test_speedrun_seed.py`.
 
 ### The full MCAT Speedrun screen on mobile (Phase 2 parity)
 On the deck list, open the **overflow menu (⋮)** → **"MCAT Speedrun"**. This opens
