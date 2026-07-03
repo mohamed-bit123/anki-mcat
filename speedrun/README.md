@@ -18,6 +18,10 @@ agent (or a human) returning with **zero prior context** can rebuild the full
 4. **`TOUCHED-UPSTREAM.md`** — ledger of every upstream Anki file we modify
    (this is also a required project deliverable + drives merge-difficulty notes).
 
+> **Verifying the project?** Go to [`../verify/`](../verify/README.md) — one place
+> with build, installer, test, latency, and sync artifacts, all reproducible with
+> `bash verify/run-all.sh`.
+
 ## How to maintain these (do this as you work)
 
 - After any meaningful decision or milestone, **append a dated entry to

@@ -1,0 +1,41 @@
+   Compiling anki_proto v0.0.0 (/Users/mohamedshawgi/anki-mcat/rslib/proto)
+   Compiling anki v0.0.0 (/Users/mohamedshawgi/anki-mcat/rslib)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.72s
+     Running unittests src/lib.rs (out/rust/debug/deps/anki-796446915d16bd8a)
+
+running 32 tests
+test speedrun::concepts::test::deck_leaf_takes_the_last_segment ... ok
+test speedrun::queue::test::high_yield_topic_scales_priority ... ok
+test speedrun::queue::test::mastered_topic_still_gets_a_priority_floor ... ok
+test speedrun::queue::test::smoothing_pulls_extremes_toward_the_prior ... ok
+test speedrun::queue::test::staleness_revives_a_known_question ... ok
+test speedrun::queue::test::topic_points_scale_priority_linearly ... ok
+test speedrun::queue::test::unseen_question_outranks_a_freshly_correct_one ... ok
+test speedrun::queue::test::urgency_dominates_when_other_signals_equal ... ok
+test speedrun::queue::test::weaker_topic_wins_when_question_need_is_equal ... ok
+test speedrun::queue::test::weakness_breaks_ties_toward_harder_cards ... ok
+test speedrun::queue::test::interleave_leads_with_the_global_highest_priority ... ok
+test speedrun::queue::test::interleave_single_topic_is_priority_descending ... ok
+test speedrun::scores::test::memory_coverage_reflects_unstudied_topics ... ok
+test speedrun::scores::test::memory_is_topic_weighted_mean_retrievability ... ok
+test speedrun::queue::test::interleave_never_repeats_a_topic_while_others_remain ... ok
+test speedrun::scores::test::memory_withheld_below_minimum ... ok
+test speedrun::scores::test::performance_needs_every_topic_hit_to_depth ... ok
+test speedrun::scores::test::performance_withheld_below_minimum ... ok
+test speedrun::scores::test::performance_weights_recent_attempts_more ... ok
+test speedrun::scores::test::projection_is_bounded_to_the_mcat_scale ... ok
+test speedrun::scores::test::calibration_sets_note_and_confidence ... ok
+test speedrun::scores::test::readiness_range_widens_with_less_data ... ok
+test speedrun::scores::test::readiness_refused_without_performance ... ok
+test speedrun::scores::test::weaker_memory_lowers_readiness ... ok
+test speedrun::concepts::test::answering_raises_concept_retrievability_and_interleaves ... ok
+test speedrun::concepts::test::concept_state_persists_and_counts_daily ... ok
+test speedrun::content::test::attempts_round_trip_through_custom_data ... ok
+test speedrun::content::test::next_questions_ranks_weak_and_unseen_first ... ok
+test speedrun::content::test::readiness_refused_with_only_flashcards ... ok
+test speedrun::content::test::questions_feed_performance_flashcards_feed_memory ... ok
+test speedrun::concepts::test::within_day_practice_rotates_across_concepts ... ok
+test speedrun::seed::test::seeding_is_idempotent_and_covers_content ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 522 filtered out; finished in 0.05s
+

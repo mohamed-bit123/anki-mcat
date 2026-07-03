@@ -1,0 +1,6 @@
+[PASS] per-topic strength (concept FSRS)
+[PASS] topic points
+[PASS] per-question attempt logs
+[PASS] three scores identical
+
+synced 2 concepts, 24 attempted questions

@@ -806,3 +806,35 @@ After fixes: `just fmt` clean; `just lint` clean (clippy/mypy/ruff/eslint/svelte
 32 Rust + 5 Python speedrun tests pass. (The only failing suite locally is
 `qt/tests/test_installer.py`, which needs network to clone the briefcase app-template —
 environmental, unrelated to our code, passes in real CI.)
+
+---
+
+## 2026-07-03 — Verification hub (build / installer / test / latency in one place)
+
+**Why.** Reviewer feedback after the MVP: "clean up the repo so it matches the demo by adding
+the build, installer, test, and latency artifacts in one place to make everything easier to
+verify." Good call — the pieces existed but were scattered.
+
+**What.** New top-level `verify/`:
+
+- `verify/README.md` — the single hub: a table mapping each concern (build, installer, test,
+  latency, sync) to its reproduce-command, its captured artifact, and the latest result.
+- `verify/run-all.sh` — one command: `just build` → `cargo test -p anki speedrun::` →
+  Python speedrun tests → `sync_check.py` → `bench.py`, teeing every result into
+  `verify/artifacts/`.
+- `verify/bench.py` — **latency artifact** (the genuinely missing piece). Headless, freshly
+  seeded collection; times the hot-path RPCs and reports p50/p95/worst against `PLAN.md` §7
+  targets. Captured run (Darwin arm64, 300 iters): record_attempt p95 **0.63 ms** (<50),
+  next_question p95 **0.76 ms** (<100), scores refresh p95 **1.52 ms** (<500), one-time seed
+  **~60 ms** (<5 s). All PASS with large headroom.
+- `verify/artifacts/` — committed **text** evidence: `latency.md`, `tests-rust.txt` (32 pass),
+  `tests-python.txt` (5 pass), `sync.txt` (all PASS), `build.log`, `build-proof.txt`
+  (`speedrun_ping` → `scheduler engine alive (anki 26.05)`), `wheels.log`.
+
+**Installer.** `just wheels` produces the real installable artifacts — `anki-26.5` (15M,
+carries the compiled Rust engine) + `aqt-26.5` (4.4M). Binaries (`.whl`/`.dmg`/`.apk`) are
+deliberately **not** committed (ship via GitHub Releases); `verify/` captures the build
+evidence + exact commands instead. Desktop `.dmg`/`.exe` come from the release workflow
+(briefcase, needs network); mobile installer is the AnkiDroid APK.
+
+Linked the hub from `speedrun/README.md`, `HOWTO-RUN.md`, and `REPO-MAP.md`.

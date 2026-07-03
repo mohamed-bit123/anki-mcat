@@ -2,6 +2,10 @@
 
 Practical run instructions for both apps. Keep this in sync as the build evolves.
 
+> **Just want to verify it works?** Run `bash verify/run-all.sh` (builds, tests,
+> sync round-trip, latency) — see [`../verify/README.md`](../verify/README.md) for
+> the one-place hub of build / installer / test / latency artifacts.
+
 ## One-time environment (already done on this machine)
 
 - Rust 1.92.0 via rustup; `just`; `n2` (`bash tools/install-n2`).

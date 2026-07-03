@@ -166,6 +166,12 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
     generation pass rate; stdlib-only, reads bundled TSVs). Mobile gets AI questions via normal
     collection sync (no on-device key).
 
+- **Verification hub**: `verify/` — single place for reviewers. `verify/README.md` (index),
+  `verify/run-all.sh` (build + tests + sync + latency in one command), `verify/bench.py`
+  (latency harness → p50/p95/worst vs `PLAN.md` §7 targets), `verify/artifacts/` (captured
+  outputs: `latency.md`, `tests-rust.txt`, `tests-python.txt`, `sync.txt`, `build-proof.txt`,
+  `wheels.log`). Installable wheels via `just wheels` → `out/wheels/` (not committed).
+
 ## To locate later (TODO anchors)
 
 - [ ] Where **proto services are registered** on the Rust side.
