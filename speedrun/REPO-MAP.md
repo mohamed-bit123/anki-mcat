@@ -6,27 +6,27 @@ as you learn them. Keep it terse.
 
 ## Top-level layout (Anki @ b00308e55)
 
-| Path | What it is |
-| --- | --- |
-| `rslib/` | **Rust backend** — the real engine (scheduling, FSRS, DB, sync). Our Rust change goes here. |
-| `rslib/src/` | Rust source root. |
-| `rslib/sync/` | Sync implementation (server/client) in Rust. |
-| `rslib/proto/`, `rslib/proto_gen/` | Rust-side proto codegen + interface. |
-| `proto/anki/*.proto` | **The cross-language contract.** Backend methods/messages. See list below. |
-| `pylib/` | Thin Python layer over Rust (`import anki`). |
-| `pylib/rsbridge/` | PyO3 wrapper exposing Rust to Python. |
-| `pylib/anki/_backend.py` | Auto-exposes snake_case Python methods per protobuf RPC. |
-| `qt/aqt/` | PyQt desktop GUI (`import aqt`); embeds web views. |
-| `qt/aqt/data/web/` | Built web assets copied from `ts/` at build time. |
-| `qt/installer/` | Briefcase installer templates (mac/linux/windows). |
-| `ts/` | Svelte/TypeScript frontend (reviewer, deck options, graphs). |
-| `ftl/` | Fluent translations. Edit `ftl/core` or `ftl/qt`. Submodules: core-repo, qt-repo. |
-| `build/` | Build system (configure / ninja_gen / archives / runner). |
-| `justfile` | Task recipes (entrypoint for all build/test/lint). |
-| `docs/` | Anki's own dev docs (architecture.md, build.md, development.md, ...). |
-| `out/` | **Auto-generated** build outputs; mostly ignore. `out/{pylib/anki,qt/_aqt,ts/lib/generated}` useful for cross-language generated code. |
-| `Cargo.toml` / `Cargo.lock` | Rust workspace root (add deps here, use `dep.workspace = true`). |
-| `rust-toolchain.toml` | Pins Rust **1.92.0**. |
+| Path                               | What it is                                                                                                                             |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `rslib/`                           | **Rust backend** — the real engine (scheduling, FSRS, DB, sync). Our Rust change goes here.                                            |
+| `rslib/src/`                       | Rust source root.                                                                                                                      |
+| `rslib/sync/`                      | Sync implementation (server/client) in Rust.                                                                                           |
+| `rslib/proto/`, `rslib/proto_gen/` | Rust-side proto codegen + interface.                                                                                                   |
+| `proto/anki/*.proto`               | **The cross-language contract.** Backend methods/messages. See list below.                                                             |
+| `pylib/`                           | Thin Python layer over Rust (`import anki`).                                                                                           |
+| `pylib/rsbridge/`                  | PyO3 wrapper exposing Rust to Python.                                                                                                  |
+| `pylib/anki/_backend.py`           | Auto-exposes snake_case Python methods per protobuf RPC.                                                                               |
+| `qt/aqt/`                          | PyQt desktop GUI (`import aqt`); embeds web views.                                                                                     |
+| `qt/aqt/data/web/`                 | Built web assets copied from `ts/` at build time.                                                                                      |
+| `qt/installer/`                    | Briefcase installer templates (mac/linux/windows).                                                                                     |
+| `ts/`                              | Svelte/TypeScript frontend (reviewer, deck options, graphs).                                                                           |
+| `ftl/`                             | Fluent translations. Edit `ftl/core` or `ftl/qt`. Submodules: core-repo, qt-repo.                                                      |
+| `build/`                           | Build system (configure / ninja_gen / archives / runner).                                                                              |
+| `justfile`                         | Task recipes (entrypoint for all build/test/lint).                                                                                     |
+| `docs/`                            | Anki's own dev docs (architecture.md, build.md, development.md, ...).                                                                  |
+| `out/`                             | **Auto-generated** build outputs; mostly ignore. `out/{pylib/anki,qt/_aqt,ts/lib/generated}` useful for cross-language generated code. |
+| `Cargo.toml` / `Cargo.lock`        | Rust workspace root (add deps here, use `dep.workspace = true`).                                                                       |
+| `rust-toolchain.toml`              | Pins Rust **1.92.0**.                                                                                                                  |
 
 ## proto/anki/ messages (the API surface)
 
@@ -42,6 +42,7 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
 > a thin seam and easy upstream merges.
 
 ## Build / run facts (verified 2026-06-30)
+
 - Host prereqs: `rustup`+`cargo` (Rust **1.92.0**, auto-selected via
   `rust-toolchain.toml`), `just`, and `n2` (`bash tools/install-n2`). Build
   downloads its own node/uv/protoc into `out/extracted/`.
@@ -55,12 +56,14 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
 - `just run` launches the Qt GUI (needs a display; not headless-friendly).
 
 ## Conventions (from AGENTS.md)
+
 - Rust errors in rslib: `error/mod.rs` `AnkiError`/`Result` + `snafu`. Elsewhere:
   `anyhow` + context. Unwrapping in build scripts/tests is fine.
 - Use `rslib/{process,io}` helpers for file/process ops.
 - Rust deps: add to root workspace, `dep.workspace = true` in the crate.
 
 ## How to add a backend RPC (verified — the trivial-change recipe)
+
 1. Add `rpc Foo(generic.Empty) returns (generic.String);` to the relevant
    service in `proto/anki/<area>.proto` (e.g. `SchedulerService` in
    `scheduler.proto`). `generic.Empty` input ⇒ the Rust method takes no arg.
@@ -71,11 +74,13 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
 3. `just build` regenerates proto + recompiles (incremental ~11s here).
 4. Call from Python: `col._backend.foo()` (auto-exposed, returns the unwrapped
    `str` for `generic.String`).
+
 - The trait `crate::services::SchedulerService` is generated from the proto;
   adding an rpc makes the method REQUIRED, so the compiler enforces the impl.
 - `crate::version::version()` returns the Anki version string ("26.05").
 
 ## Mobile (AnkiDroid + rsdroid) — location + facts
+
 - **Lives OUTSIDE this repo** at `/Users/mohamedshawgi/anki-mcat-mobile/` as two
   sibling checkouts (moved out of `anki-mcat/` to avoid a `.yarnrc.yml` config-bleed
   build break — see JOURNAL 2026-06-30 Stage B):
@@ -105,11 +110,13 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
   change on both. Re-anchor desktop to 25.09.2 if a byte-identical engine is wanted.
 
 ## Android SDK (installed)
+
 - `ANDROID_HOME=$HOME/Library/Android/sdk`. Packages: platform-tools 37,
   emulator 36.6.11, platforms;android-35, build-tools;35.0.0,
   system-images;android-35;google_apis;arm64-v8a. AVD named **`mcat`**.
 
 ## Review queue building (Phase 1 seam — FOUND)
+
 - Builder: `rslib/src/scheduler/queue/builder/mod.rs`. `Collection::build_queues`
   = `QueueBuilder::new` → `gather_cards` → `build(learn_ahead_secs)`.
 - Reviews land in `QueueBuilder.review: Vec<DueCard>` (`builder/mod.rs`), gathered
@@ -147,8 +154,20 @@ change), `cards.proto`, `collection.proto`, `config.proto`, `deck_config.proto`,
   `qt/aqt/speedrun.py` (`load_next_question`) and `SpeedrunActivity.kt` (`loadNextQuestion`).
   FSRS gotcha: build with `FSRS::new(Some(&[]))` (default params) — `None` makes
   `next_states` panic. 5 concept-related unit tests.
+- **AI question generation (desktop)**: `qt/aqt/speedrun_ai.py` — grounded generation +
+  independent verifier + note insertion; UI in `qt/aqt/speedrun.py` ("Generate with AI"
+  button, `GenerateDialog`, auto top-up in `_maybe_autogen`/`load_next_question`). Pure
+  Python (no engine/proto change). Grounds on built-in flashcards
+  (`source_facts(col, topic)`), dedups vs `existing_stems`, inserts standard
+  `mcat-question`+`mcat-ai` notes into `MCAT Practice::<topic>` so the concept-FSRS scheduler
+  - scores pick them up. Provenance = tags + Explanation footer (NOT `custom_data`; Anki caps
+    it at 100 bytes, used by attempt log `spA`). Key from `OPENAI_API_KEY` or local profile —
+    never committed. Held-out eval harness: `speedrun/ai_eval.py` (verifier calibration +
+    generation pass rate; stdlib-only, reads bundled TSVs). Mobile gets AI questions via normal
+    collection sync (no on-device key).
 
 ## To locate later (TODO anchors)
+
 - [ ] Where **proto services are registered** on the Rust side.
 - [ ] Where the **reviewer** calls the backend to fetch/answer cards (qt + ts).
 - [ ] Where **undo** is implemented (must prove undo still works after our change).

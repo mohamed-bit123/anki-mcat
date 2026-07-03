@@ -304,7 +304,8 @@ impl Collection {
 
     /// Re-ranks gathered reviews by [`points_at_stake`] (weakness- and
     /// yield-weighted memory priority) and then interleaves them across topics
-    /// so study pulls from all subjects at once. See [`crate::speedrun::queue`].
+    /// so study pulls from all subjects at once. See
+    /// [`crate::speedrun::queue`].
     fn speedrun_reorder_reviews(
         &mut self,
         reviews: &mut [DueCard],

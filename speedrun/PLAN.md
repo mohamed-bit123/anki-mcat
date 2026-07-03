@@ -10,7 +10,7 @@ Build an MCAT prep app on a fork of Anki:
   iOS-FFI), both running the **same Rust backend** (`rslib`). They sync.
 - **Three separate scores**, each with a range (never one blended number):
   - **Memory** — P(recall a taught fact now). FSRS already does this well.
-  - **Performance** — P(correct on a *new, unseen* exam-style question).
+  - **Performance** — P(correct on a _new, unseen_ exam-style question).
   - **Readiness** — projected MCAT score (472–528 scale) + range + confidence.
 - **A real change in Anki's Rust code** (not just Python/Qt screens).
 - **The honesty rule.** No readiness number unless we also show: the evidence,
@@ -35,9 +35,9 @@ Build an MCAT prep app on a fork of Anki:
 - **FSRS stays as-is** for spacing/memory. We do not re-derive optimal gaps.
 - **Stance: memory strongly drives readiness** (Willingham/Roediger/Bjork). We
   build the readiness model with topic mastery (memory) as the dominant input.
-  This is allowed by the rubric — the automatic-fail is only for *fabricated*
-  numbers with no evidence/uncertainty. So: memory→readiness is our *model*;
-  "show the range + evidence" is the *presentation contract*. We satisfy both.
+  This is allowed by the rubric — the automatic-fail is only for _fabricated_
+  numbers with no evidence/uncertainty. So: memory→readiness is our _model_;
+  "show the range + evidence" is the _presentation contract_. We satisfy both.
   We STILL measure performance separately (paraphrase test) so we can honestly
   **report the memory→performance gap** — finding the gap is small is a valid,
   strong result.
@@ -67,7 +67,7 @@ Build an MCAT prep app on a fork of Anki:
 
 ## 4. Build commands (from AGENTS.md — use `just`, not raw ninja/run)
 
-- Run desktop dev: `just run`  (web views at http://localhost:40000/_anki/pages/)
+- Run desktop dev: `just run` (web views at http://localhost:40000/_anki/pages/)
 - Build + all checks: `just check` (do before marking work done)
 - Tests: `just test-rust`, `just test-py`, `just test-ts`, `just test-e2e`
 - Fast Rust check: `cargo check`
@@ -78,6 +78,7 @@ Build an MCAT prep app on a fork of Anki:
 ## 5. Phased plan (ordered to match deadlines)
 
 ### Phase 0 — Foundation (DO FIRST; teams die here)
+
 - [x] Fork/clone Anki into workspace (HEAD recorded in JOURNAL).
 - [x] Install host prereqs (rustup+cargo 1.92.0, just, n2), init ftl submodules.
 - [x] Build desktop from source (`just build` ~89s); engine bridge verified.
@@ -101,6 +102,7 @@ Build an MCAT prep app on a fork of Anki:
       engine confirmed running on the emulator.
 
 ### Phase 1 — Wednesday (core, NO AI) — remaining
+
 - [ ] MCAT review loop on a real deck.
 - [ ] Memory model w/ honest display: range + give-up rule.
 - [ ] Desktop installer runs on a clean machine.
@@ -110,6 +112,7 @@ Build an MCAT prep app on a fork of Anki:
   recording, phone review-session screen recording.
 
 ### Phase 2 — Friday (AI + sync)
+
 - [ ] Two-way sync desktop<->phone (use Anki's sync; document conflict rule).
 - [ ] Offline review then sync on reconnect.
 - [ ] AI card generation + checker: traceable source, held-out eval
@@ -119,6 +122,7 @@ Build an MCAT prep app on a fork of Anki:
 - Proof: eval numbers + baseline comparison + phone→desktop sync recording.
 
 ### Phase 3 — Sunday (prove it + ship)
+
 - [ ] Memory calibration: calibration chart + Brier/log-loss on held-out reviews.
 - [ ] Performance model: accuracy on held-out exam-style questions.
 - [ ] Score mapping written down, with a range.
@@ -134,6 +138,7 @@ Build an MCAT prep app on a fork of Anki:
   Brainlift.
 
 ## 6. Specific challenges checklist (section 7 of brief)
+
 - 7a Rust change (queue) + 3 Rust tests + 1 Python test + undo proof + why-Rust
   note + touched-files + works on phone.
 - 7b Sync test: 10 offline phone + 10 offline desktop → merge all 20, none lost/
@@ -150,6 +155,7 @@ Build an MCAT prep app on a fork of Anki:
 - 7h `make bench`: load shared 50k deck; print p50/p95/worst per action.
 
 ## 7. Speed/reliability targets (report p50/p95/worst)
+
 - Button press ack p95 < 50ms (desktop+phone).
 - Next card after grading p95 < 100ms.
 - Dashboard first load p95 < 1s; refresh p95 < 500ms (no UI freeze).
@@ -159,6 +165,7 @@ Build an MCAT prep app on a fork of Anki:
 - Zero corrupted collections in crash test, both platforms.
 
 ## 8. Context-window / big-codebase strategy (why we can finish)
+
 1. **Isolate our code** in owned modules (e.g. `rslib/src/speedrun/`,
    `proto/anki/speedrun.proto`, a dedicated Python module, a Svelte dashboard
    component). ~80% of work lives in files we authored & fully understand.
@@ -175,8 +182,9 @@ Build an MCAT prep app on a fork of Anki:
    independently testable; never hold the whole system in context at once.
 
 ## 9. Open questions / risks to revisit
+
 - Exact MCAT deck source + license; coverage-map data source (official outline).
 - Mobile path: AnkiDroid+rsdroid (Android, faster) first; iOS-FFI if time.
-- Need a transfer-of-learning citation for the *performance* model (Brainlift).
+- Need a transfer-of-learning citation for the _performance_ model (Brainlift).
 - Confirm conflict-resolution rule wording for sync (last-writer? higher-grade?).
 - `make bench` harness + a synthetic 50k-card MCAT deck generator.

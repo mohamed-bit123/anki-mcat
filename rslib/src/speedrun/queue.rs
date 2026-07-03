@@ -1,4 +1,4 @@
-// Copyright: MCAT Speedrun fork
+// Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 //! Weakness-weighted "points at stake" review ordering.
@@ -10,8 +10,8 @@
 //!
 //! * **urgency** = `1 - retrievability` — how likely you are to fail the card
 //!   *now*. A card you'll almost surely recall (R≈1) is barely worth a slot.
-//! * **weakness** = `1 + difficulty` — cards you find hard (high FSRS difficulty
-//!   or many lapses) are shakier knowledge and worth shoring up.
+//! * **weakness** = `1 + difficulty` — cards you find hard (high FSRS
+//!   difficulty or many lapses) are shakier knowledge and worth shoring up.
 //! * **points at stake** = `topic_points` — how many MCAT points ride on the
 //!   card's topic (high-yield topics score higher). Defaults to 1.0 when no
 //!   topic weighting is configured, so the ordering still works on any deck.
@@ -96,7 +96,8 @@ fn card_difficulty(card: &Card) -> f32 {
     }
 }
 
-// --- Application-question ordering (the question analogue of points_at_stake) --
+// --- Application-question ordering (the question analogue of points_at_stake)
+// --
 //
 // Flashcards have FSRS memory state, so their queue uses retrievability +
 // difficulty. Application questions are usually New cards with no FSRS state;
@@ -105,8 +106,8 @@ fn card_difficulty(card: &Card) -> f32 {
 // weakest") but read weakness from applied accuracy instead of FSRS.
 
 /// Bayesian prior for smoothing per-topic applied accuracy: pretend we've seen
-/// [`TOPIC_ACC_PRIOR_STRENGTH`] attempts at [`TOPIC_ACC_PRIOR_MEAN`] accuracy, so
-/// a single lucky/unlucky answer can't declare a topic mastered or hopeless.
+/// [`TOPIC_ACC_PRIOR_STRENGTH`] attempts at [`TOPIC_ACC_PRIOR_MEAN`] accuracy,
+/// so a single lucky/unlucky answer can't declare a topic mastered or hopeless.
 pub const TOPIC_ACC_PRIOR_MEAN: f32 = 0.6;
 pub const TOPIC_ACC_PRIOR_STRENGTH: f32 = 4.0;
 
@@ -136,13 +137,14 @@ pub struct QuestionPriorityInput {
     pub days_since_last: f32,
 }
 
-/// Weakness-weighted priority for one application question. Higher = ask sooner.
+/// Weakness-weighted priority for one application question. Higher = ask
+/// sooner.
 ///
 /// `priority = topic_points * topic_weakness * need`, where
-/// `topic_weakness = 1 - topic_accuracy` (floored at 0.1 so mastered topics still
-/// get occasional coverage), and `need` is 1.0 for an unseen question, otherwise
-/// blends how often you miss it (retrieval weakness) with how long it's been
-/// (spacing).
+/// `topic_weakness = 1 - topic_accuracy` (floored at 0.1 so mastered topics
+/// still get occasional coverage), and `need` is 1.0 for an unseen question,
+/// otherwise blends how often you miss it (retrieval weakness) with how long
+/// it's been (spacing).
 pub fn question_priority(input: &QuestionPriorityInput) -> f32 {
     let topic_weakness = (1.0 - input.topic_accuracy.clamp(0.0, 1.0)).max(0.1);
     let need = if input.attempts == 0 {
@@ -160,9 +162,9 @@ pub fn question_priority(input: &QuestionPriorityInput) -> f32 {
 // *sequence*: the spacing research is clear that mixing topics (interleaving)
 // beats studying one subject in a block, because it forces discrimination and
 // spaces each topic's retrievals. So instead of emitting all of the weakest
-// topic's cards back-to-back, we pull from ALL topics at once, never repeating a
-// topic on consecutive cards while any other topic still has cards, yet always
-// surfacing the highest-priority card available at each step.
+// topic's cards back-to-back, we pull from ALL topics at once, never repeating
+// a topic on consecutive cards while any other topic still has cards, yet
+// always surfacing the highest-priority card available at each step.
 
 /// One card to interleave: its position in the source slice, its topic, and its
 /// points-at-stake priority.
@@ -174,10 +176,10 @@ pub struct InterleaveItem {
 }
 
 /// Returns the source indices in interleaved study order (see module note).
-/// Highest-priority card first; thereafter the highest-priority card whose topic
-/// differs from the one just emitted, falling back to same-topic only when no
-/// other topic has cards left. With a single topic this degenerates to plain
-/// priority-descending order.
+/// Highest-priority card first; thereafter the highest-priority card whose
+/// topic differs from the one just emitted, falling back to same-topic only
+/// when no other topic has cards left. With a single topic this degenerates to
+/// plain priority-descending order.
 pub fn interleave_order(items: &[InterleaveItem]) -> Vec<usize> {
     use std::collections::BTreeMap;
     use std::collections::VecDeque;
@@ -379,11 +381,7 @@ mod test {
 
     #[test]
     fn interleave_leads_with_the_global_highest_priority() {
-        let items = vec![
-            item(0, 5, 1.0),
-            item(1, 6, 100.0),
-            item(2, 7, 50.0),
-        ];
+        let items = vec![item(0, 5, 1.0), item(1, 6, 100.0), item(2, 7, 50.0)];
         let order = interleave_order(&items);
         assert_eq!(items[order[0]].topic_id, 6);
         assert_eq!(items[order[1]].topic_id, 7);
@@ -392,11 +390,7 @@ mod test {
 
     #[test]
     fn interleave_single_topic_is_priority_descending() {
-        let items = vec![
-            item(0, 3, 1.0),
-            item(1, 3, 9.0),
-            item(2, 3, 5.0),
-        ];
+        let items = vec![item(0, 3, 1.0), item(1, 3, 9.0), item(2, 3, 5.0)];
         let order = interleave_order(&items);
         assert_eq!(order, vec![1, 2, 0]);
     }

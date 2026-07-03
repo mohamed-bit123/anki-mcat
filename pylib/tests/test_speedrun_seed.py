@@ -1,4 +1,4 @@
-# Copyright: MCAT Speedrun fork
+# Copyright: Ankitects Pty Ltd and contributors
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 """End-to-end test of the built-in MCAT flashcards and topic interleaving.
@@ -70,11 +70,7 @@ def test_speedrun_seeded_cards_interleave_topics():
         # topics for a long stretch: no two consecutive cards share a topic
         # across at least the first 14 cards (2 full rounds of 7 topics).
         window = decks[:14]
-        consecutive_same = sum(
-            1 for a, b in zip(window, window[1:]) if a == b
-        )
-        assert consecutive_same == 0, (
-            f"topics should interleave, got runs: {window}"
-        )
+        consecutive_same = sum(1 for a, b in zip(window, window[1:]) if a == b)
+        assert consecutive_same == 0, f"topics should interleave, got runs: {window}"
     finally:
         col.close()

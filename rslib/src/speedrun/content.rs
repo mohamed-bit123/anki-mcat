@@ -1,4 +1,4 @@
-// Copyright: MCAT Speedrun fork
+// Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 //! Practice-question content + attempt logging, and the gathering layer that
@@ -6,10 +6,11 @@
 //!
 //! ## Two kinds of content
 //! * **Flashcards** — ordinary cards. They feed the **Memory** score.
-//! * **Application questions** — notes tagged [`QUESTION_TAG`]. The user answers
-//!   them like a mini practice test; each graded answer is logged and feeds the
-//!   **Performance** (and therefore **Readiness**) score. Keeping them tagged
-//!   keeps the two signals strictly separate, as the honesty rules require.
+//! * **Application questions** — notes tagged [`QUESTION_TAG`]. The user
+//!   answers them like a mini practice test; each graded answer is logged and
+//!   feeds the **Performance** (and therefore **Readiness**) score. Keeping
+//!   them tagged keeps the two signals strictly separate, as the honesty rules
+//!   require.
 //!
 //! An attempt is stored compactly inside the question card's `custom_data` JSON
 //! under [`ATTEMPTS_KEY`] as `[[day, correct], ...]` (day = days since
@@ -101,8 +102,8 @@ impl From<&SpeedrunScores> for anki_proto::scheduler::SpeedrunScoresResponse {
 }
 
 impl Collection {
-    /// Records one graded answer to an application question, appending it to the
-    /// card's `custom_data` attempt log.
+    /// Records one graded answer to an application question, appending it to
+    /// the card's `custom_data` attempt log.
     pub(crate) fn speedrun_record_attempt(&mut self, card_id: CardId, correct: bool) -> Result<()> {
         let today = self.timing_today()?.days_elapsed as i64;
         let mut card = self.storage.get_card(card_id)?.or_not_found(card_id)?;
@@ -315,13 +316,13 @@ impl Collection {
         topic_points: &HashMap<String, f32>,
         deck_names: &mut HashMap<DeckId, String>,
     ) -> Result<f32> {
-        if !deck_names.contains_key(&deck_id) {
+        if let std::collections::hash_map::Entry::Vacant(e) = deck_names.entry(deck_id) {
             let name = self
                 .storage
                 .get_deck(deck_id)?
                 .map(|d| d.human_name().to_lowercase())
                 .unwrap_or_default();
-            deck_names.insert(deck_id, name);
+            e.insert(name);
         }
         let name = &deck_names[&deck_id];
         Ok(topic_points

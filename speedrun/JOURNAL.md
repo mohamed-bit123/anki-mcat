@@ -17,6 +17,7 @@ and confirmed understanding before touching files.
 much content, it's an unstable memory system; retrieval accessibility (not
 content completion or felt confidence) is the best readiness metric. Experts:
 Dunlosky, Willingham, Roediger, Karpicke, Bjork. Key usable hooks:
+
 - Bjork storage vs. retrieval strength maps onto FSRS (stability≈storage,
   retrievability≈retrieval) — gives us a cited conceptual bridge to readiness.
 - Interleaving research (with the caveat that excessive alternation can hurt) →
@@ -24,12 +25,13 @@ Dunlosky, Willingham, Roediger, Karpicke, Bjork. Key usable hooks:
 - "Order review by how well you remember a topic, not textbook order" → directly
   motivates the points-at-stake Rust queue.
 - Flagged gap: research is memory-heavy; need a transfer-of-learning source to
-  ground the *performance* model in the Brainlift.
+  ground the _performance_ model in the Brainlift.
 
 **Owner decisions (locked).**
+
 - Keep FSRS as-is (trusted; don't re-derive spacing).
 - Stance: memory directly drives readiness. Reconciled with rubric: that's our
-  *model*; we still show ranges + evidence (presentation contract) and still
+  _model_; we still show ranges + evidence (presentation contract) and still
   measure performance separately to report the gap. No conflict.
 
 **Workspace state.** `/Users/mohamedshawgi/anki-mcat` was empty, not a git repo.
@@ -38,6 +40,7 @@ Xcode Command Line Tools. Missing (needed later): rustup/cargo, just, JDK +
 Android SDK/NDK (AnkiDroid), full Xcode (iOS).
 
 **Action: cloned Anki into the workspace as the fork.**
+
 - `git clone https://github.com/ankitects/anki.git .`
 - Upstream HEAD at clone time: **`b00308e551576f5a71593a80f377bc1d28c6612e`**
   ("fix(search): normalize whitespace in search query parser (#4853)").
@@ -46,6 +49,7 @@ Android SDK/NDK (AnkiDroid), full Xcode (iOS).
 - License confirmed AGPL-3.0-or-later (+ BSD-3 portions). Good.
 
 **Learned about the build (from AGENTS.md / docs).**
+
 - Use **`just`** recipes, NOT raw `./ninja` / `./run`. Key: `just run`,
   `just check`, `just test-rust|py|ts`, `cargo check`, `just fmt`/`just lint`.
 - Build system (in `build/`) downloads its own node/uv/protoc; we just need
@@ -57,6 +61,7 @@ Android SDK/NDK (AnkiDroid), full Xcode (iOS).
 REPO-MAP, TOUCHED-UPSTREAM so context resets don't lose the train of thought.
 
 **Next up (Phase 0):**
+
 1. Install rustup+cargo (1.92.0) and just; `git submodule update --init` for ftl.
 2. First desktop build via `just run`; capture clean-build evidence + verify the
    app launches.
@@ -68,6 +73,7 @@ REPO-MAP, TOUCHED-UPSTREAM so context resets don't lose the train of thought.
 ## 2026-06-30 — Toolchain installed + first desktop build SUCCEEDS
 
 **Toolchain.**
+
 - `rustup` installed via the official script (not brew — see gotcha below).
   Rust **1.92.0** toolchain installed; rustup confirms it's active "because
   overridden by rust-toolchain.toml" in the repo. `cargo 1.92.0`.
@@ -101,6 +107,7 @@ closed cleanly. Confirms the **rslib ↔ rsbridge ↔ pylib** bridge works. This
 the seam our Rust change will ride.
 
 **Key build/run facts learned (also in REPO-MAP):**
+
 - Built Python venv: `out/pyenv/bin/python`. Generated code lives in
   `out/pylib` + `out/qt`; source in `pylib` + `qt`. Run scripts add all four to
   `sys.path` (see `tools/run.py`).
@@ -124,6 +131,7 @@ iOS kept as bonus. AnkiDroid runs Anki's real Rust backend (rsdroid), so the
 "one shared engine" requirement is satisfied.
 
 **Trivial Rust change (pipeline validation) — WORKS end to end.**
+
 - Added `rpc SpeedrunPing(generic.Empty) returns (generic.String);` to
   `SchedulerService` in `proto/anki/scheduler.proto`.
 - Implemented `speedrun_ping()` in
@@ -136,6 +144,7 @@ iOS kept as bonus. AnkiDroid runs Anki's real Rust backend (rsdroid), so the
 - Logged both edits in TOUCHED-UPSTREAM.md (additive, low merge risk).
 
 **Android toolchain installed (host).**
+
 - JDK 17 (`~/jdk17`) for desktop; **JDK 21** (`~/jdk21`) for AnkiDroid (it
   requires JDK 21–25, Gradle 9.5.0). Temurin tarballs (brew still broken).
 - Android SDK at `~/Library/Android/sdk` via cmdline-tools `sdkmanager`:
@@ -149,6 +158,7 @@ iOS kept as bonus. AnkiDroid runs Anki's real Rust backend (rsdroid), so the
   `for i in $(seq 1 60); do echo y; done | sdkmanager --licenses`.
 
 **AnkiDroid built from source — APK produced.**
+
 - Cloned `ankidroid/Anki-Android` (shallow) to `mobile/Anki-Android/`
   (git-ignored). Wrote `local.properties` with `sdk.dir`.
 - `./gradlew :AnkiDroid:assembleFullDebug` → **BUILD SUCCESSFUL in 4m33s**.
@@ -194,6 +204,7 @@ while DESKTOP stays at 26.05. Both share `rslib` and carry the same additive
 `SpeedrunPing` change, so "one engine" holds. If we ever want a byte-identical
 engine version on both, re-anchor the desktop fork to 25.09.2 (cheap: our change is
 2 additive files). Tracked as an option, not required.
+
 - Tried backend tag `0.1.63-anki25.09.2` first → AnkiDroid `compileFullDebugKotlin`
   failed: `Unresolved reference 'MAX_INDIVIDUAL_MEDIA_FILE_SIZE'` (a `Backend`
   constant added in 0.1.64). Fix: checkout backend commit `f9b78ba`
@@ -220,6 +231,7 @@ NDK **29.0.14206865** (`sdkmanager "ndk;29.0.14206865"`), rust android targets,
 JDK 17/21/25 OK. First full build ~6m20s; incremental rebuilds ~90s.
 
 **Proof our Rust change reaches the phone:**
+
 - `grep -a "speedrun: scheduler engine alive"` ⇒ present in
   `Anki-Android/AnkiDroid/build/outputs/apk/full/debug/AnkiDroid-full-arm64-v8a-debug.apk`
   → `lib/arm64-v8a/librsdroid.so`. (Use `grep -a`, NOT `strings`: the stripped `.so`
@@ -287,21 +299,23 @@ and rebuild the rsdroid .aar + APK so the queue change ships to the phone too.
 
 Applied the identical change to the mobile backend anki (`anki-mcat-mobile/
 Anki-Android-Backend/anki`, v25.09.2). Two version deltas vs desktop:
+
 - 25.09.2 has **no** `ReviewCardOrder::RelativeOverdueness` (enum max = 11) and its
   `review_order_sql` uses `build_retrievability_clauses(fsrs, timing, SqlSortOrder)`.
   So the new SQL arm gathers via `build_retrievability_clauses(.., Ascending)`
   (most-forgettable first) instead of the desktop's RelativeOverdueness subclause.
 - The simulator's fallback arm is `Added | ReverseAdded => None` (no
   RelativeOverdueness), so the new arm slots in before it.
-Used proto value **13** to match desktop, so `reviewOrder = 13` means points-at-stake
-on both platforms (mobile leaves 12 unused — proto allows the gap). The `speedrun/`
-ranking module was copied over verbatim.
+  Used proto value **13** to match desktop, so `reviewOrder = 13` means points-at-stake
+  on both platforms (mobile leaves 12 unused — proto allows the gap). The `speedrun/`
+  ranking module was copied over verbatim.
 
 NOTE: host `cargo check` on the mobile tree fails in `rslib/src/sync/*` (async-
 compression/tokio trait drift under host rust 1.92) — pre-existing and unrelated to
 our code; the Android build pins rust 1.89.0 + the locked deps and builds clean.
 
 Proof on phone:
+
 - `./build.sh` (backend) → **BUILD SUCCESSFUL**; rslib cross-compiled for arm64.
 - `grep -a speedrunTopicPoints librsdroid.so` → found (our Phase 1 config key is in
   the native lib), Phase 0 ping string still present.
@@ -322,13 +336,14 @@ application-question plumbing that feeds them.
 **Opinion logged (practice tests vs flashcards):** they're complementary, not
 alternatives. Flashcards = Memory (retrieval strength of facts); application
 questions = Performance (transfer). Recall ≠ transfer, and the MCAT is an
-application exam, so applied questions are *required* to (a) measure Performance
+application exam, so applied questions are _required_ to (a) measure Performance
 and (b) honestly calibrate Readiness. Readiness is therefore driven by applied
 Performance, with Memory as a ceiling factor — memorization alone never yields a
 readiness number.
 
 **`rslib/src/speedrun/scores.rs` (pure, 10 tests):**
-- Memory = topic-weighted mean FSRS retrievability over *studied* cards + coverage.
+
+- Memory = topic-weighted mean FSRS retrievability over _studied_ cards + coverage.
 - Performance = recency- and topic-weighted accuracy on application questions.
 - Readiness = projected MCAT 472–528 via a documented pct→score map, range from a
   Wilson interval (widens with less data) inflated by calibration error, plus a
@@ -365,7 +380,8 @@ RPCs, and avoids the ts build round-trip I can't visually verify. The Svelte
 version can wrap the same RPCs later.
 
 **What it does:**
-- Three live score cards (Memory / Performance / Readiness) rendered *honestly* —
+
+- Three live score cards (Memory / Performance / Readiness) rendered _honestly_ —
   when the engine withholds a score it shows `—` plus the engine's `reason`, not a
   fake number. Readiness shows projected + range (472–528) + confidence +
   calibration note.
@@ -399,10 +415,11 @@ The practice runner originally just `random.shuffle`d questions — it ignored t
 points-at-stake idea entirely. Fixed that by giving questions their own
 weakness-weighted ranking, the application-question analogue of the Phase 1 review
 queue. They can't reuse `points_at_stake` directly (questions are New cards with no
-FSRS state), so they rank on *applied accuracy* instead of retrievability.
+FSRS state), so they rank on _applied accuracy_ instead of retrievability.
 
 **`question_priority` (new pure fn in `rslib/src/speedrun/queue.rs`, 6 new tests):**
 `priority = topic_points × topic_weakness × need`, where
+
 - `topic_weakness = 1 − smoothed_topic_accuracy` (floored at 0.1 so mastered
   topics still get occasional coverage),
 - `smoothed_accuracy` uses a Bayesian prior (mean 0.6, strength 4) so one lucky/
@@ -456,6 +473,7 @@ Kotlin API (`notetypes.new/newField/addField/newTemplate/add_template/add`,
 `startActivity`), registered in `AndroidManifest.xml`.
 
 **Proof (on the running emulator, driven via adb/uiautomator):**
+
 - Opened the screen → 3 scores all **withheld with the engine's honest reasons**
   ("need 20 studied cards", "need 10 graded questions", "no applied evidence yet").
 - Seeded 12 → started a set → first question shows **`priority 0.40`, Biochemistry
@@ -475,7 +493,7 @@ on AVD `mcat`; entry point Tools-style overflow → "MCAT Speedrun".)
 ## 2026-07-01 — Built-in MCAT flashcards + topic interleaving (desktop + mobile)
 
 **Direction.** Make this a self-contained MCAT app: ship built-in flashcards for
-every MCAT subject, and have the flashcard *spacing methodology* interleave topics
+every MCAT subject, and have the flashcard _spacing methodology_ interleave topics
 (pull from all subjects at once) on top of the existing memory-based points-at-stake
 selection. Anki/FSRS is purely time-based, so interleaving is a scheduling/order
 concern, not an FSRS change.
@@ -494,7 +512,7 @@ mixed instead of blocked. Both prior points-at-stake integration tests still pas
 
 **Built-in content (single source of truth in the engine).** New `speedrun/seed.rs`:
 56 original, high-yield cards across 7 subjects (Biochem, Bio, Gen Chem, Orgo,
-Physics, Psych, Soc), authored once in Rust so desktop + mobile ship the *same* deck
+Physics, Psych, Soc), authored once in Rust so desktop + mobile ship the _same_ deck
 with zero duplication. `Collection::speedrun_seed_builtin` (idempotent — no-ops if any
 `mcat-flashcard`-tagged card exists) creates per-topic subdecks `MCAT::<Topic>` (Basic
 notetype), sets the `MCAT` root deck to the `SpeedrunPointsAtStake` review order **and**
@@ -579,7 +597,7 @@ question count, optional timer defaulting to ~90 s/question) and `TestRunnerDial
 (QStackedWidget: exam page + summary page). The runner shows one question at a time with
 **no feedback until the end**, Previous/Next nav, a live countdown that auto-submits at
 0:00, then a scored summary (overall %, per-subject breakdown, time used) and a full
-answer-by-answer review with explanations. Honesty preserved: only *answered* questions are
+answer-by-answer review with explanations. Honesty preserved: only _answered_ questions are
 logged via the existing `speedrun_record_attempt` RPC (blanks are scored incorrect in the
 test summary but never fed to Performance/Readiness). New "Take timed test" button sits next
 to "Start practice set"; both gate on questions existing. Verified headlessly (offscreen
@@ -595,7 +613,7 @@ to the engine, summary + review populated. No upstream files touched (all in our
 ## 2026-07-01 — Concept-level FSRS scheduling for questions + open-ended runner
 
 **Why.** The practice runner previously ranked the whole question set once (weakness-
-weighted "points at stake") and marched through it. Re-showing the *same* MCAT item tests
+weighted "points at stake") and marched through it. Re-showing the _same_ MCAT item tests
 memory of the item, not the ability to apply the concept to a novel question — which is what
 the exam measures. So we moved spacing up one level: FSRS now schedules the **concept**
 (subject/topic), not the item. This is also the seam AI generation will plug into later
@@ -653,8 +671,8 @@ has been hit at least 3 times, so a projection never rests on partial subject co
 `performance_min_attempts_per_topic` (default 3); `performance_min_attempts` lowered to 8 as
 a light floor. `performance_score(attempts, total_topics, cfg)` now takes the size of the
 topic universe and withholds unless **all** `total_topics` have ≥3 graded attempts, with a
-reason like *"Hit every topic at least 3 times before predictions — 6/7 topics tested in
-depth so far."* `content.rs::gather_performance` computes `total_topics` as the count of
+reason like _"Hit every topic at least 3 times before predictions — 6/7 topics tested in
+depth so far."_ `content.rs::gather_performance` computes `total_topics` as the count of
 distinct question subdecks in the bank (including unattempted ones); `topic_id` = subdeck id,
 so coverage/depth are tracked per MCAT subject. Readiness cascades (it's gated on
 Performance). UI unchanged — it already renders the withheld reason.
@@ -663,8 +681,9 @@ Performance). UI unchanged — it already renders the withheld reason.
 recency/range/etc. tests updated to pass `total_topics`). Desktop: rebuilt, 2 score e2e green.
 Backend headless on the full seeded bank (7 subjects): 6/7 subjects hit 3× each → withheld
 ("6/7 topics tested in depth so far"), Readiness withheld; after the 7th subject → Performance
-+ Readiness both unlock. Mobile: copied `scores.rs`, applied the `content.rs` edit, rebuilt
-AAR + APK, reinstalled on emulator (same shared engine).
+
+- Readiness both unlock. Mobile: copied `scores.rs`, applied the `content.rs` edit, rebuilt
+  AAR + APK, reinstalled on emulator (same shared engine).
 
 ---
 
@@ -676,7 +695,7 @@ Performance/Readiness. Give them an explicit way to say "I don't know" instead o
 **Design (UI-only — no engine/proto change).** Added an "I don't know / I'm guessing" button
 to the practice runner in both apps. Tapping it reveals the correct answer + explanation (so
 you still learn) and logs the attempt via the existing `speedrun_record_attempt(card_id,
-correct=false)`. Because it records as *not known*, it (a) counts against applied accuracy so
+correct=false)`. Because it records as _not known_, it (a) counts against applied accuracy so
 guessing can't inflate scores, and (b) advances that concept's FSRS state as an "again"
 (concept comes back sooner) — the pedagogically correct outcome. It increments the session
 "answered" and daily counters but never the "correct" counter. Desktop: `qt/aqt/speedrun.py`
@@ -688,3 +707,102 @@ guessing; leaving a question blank there is already excluded from scoring).
 stays 0 correct, honest feedback shown, Next enabled. Mobile on emulator: Start practice →
 "I don't know" → session "1 answered • 0 correct", daily "2 answered", answer revealed,
 Performance still gated. Same behavior both platforms.
+
+---
+
+## 2026-07-02 — Infinite AI question generation (desktop) + held-out eval
+
+**Why.** Make the application-question bank effectively bottomless without hand-authoring,
+while honoring the brief's AI rules: traceable sources, held-out evaluation, and the app must
+stay fully usable with AI **off**.
+
+**Design (desktop, Python/qt layer — no engine or proto change).** New `qt/aqt/speedrun_ai.py`:
+
+- **Grounded (RAG-lite) generation.** For a chosen subject we pull that subject's built-in
+  flashcards (`MCAT::<subject>`) as _source facts_, feed them to the model, and require each
+  generated question to cite the fact index it tests. That makes sources **traceable** and
+  curbs hallucination. Provenance (source fact + model + prompt version + verified flag) is
+  stored via tags (`mcat-ai`, `mcat-ai-verified`) and a visible footer appended to the
+  Explanation — **not** in `custom_data`, which Anki hard-caps at 100 bytes and reserves for
+  the attempt log (`spA`). (Learned that cap the hard way in testing.)
+- **Independent verifier (held-out style).** Optional second pass: a separate, temperature-0
+  call answers the item _blind_ (not told the key); we keep it only if it independently lands
+  on the same answer and judges the item single-correct. Failures are dropped.
+- **Same pipeline as built-ins.** Accepted questions are ordinary `MCAT Practice Question`
+  notes tagged `mcat-question` in `MCAT Practice::<subject>`, so the existing concept-FSRS
+  scheduler and Performance/Readiness scoring pick them up with zero extra wiring.
+- **Key never in the repo.** Read from `OPENAI_API_KEY` or the local Anki profile
+  (`mw.pm.profile`, per-machine, not synced, not committed). Model defaults to `gpt-4o-mini`,
+  overridable.
+
+**UI (`qt/aqt/speedrun.py`).** "Generate with AI" button → `GenerateDialog` (subject, count,
+model, masked key, verify toggle, auto-gen toggle). Generation runs on a background thread via
+`mw.taskman.with_progress`; the collection is only touched on the main-thread callback.
+Optional **auto top-up**: when a served concept drops below 3 unseen questions during practice,
+a background batch of 5 is generated for it (off by default). Everything is gated so the app is
+100% functional with no key.
+
+**Held-out evaluation harness.** `speedrun/ai_eval.py` (stdlib-only, reads the bundled TSVs):
+(1) **verifier calibration** — hides the answer key on a held-out sample of _built-in_ questions
+and measures how often the checker recovers the known answer (trust ceiling for auto-policing);
+(2) **generation pass rate** — generates a grounded batch and reports the fraction that survive
+the independent verifier.
+
+**Verified.** Live run (`gpt-4o-mini`, Biochemistry): verifier calibration **3/3** matched known
+keys, generation **3/3** structurally valid and independently verified. Headless (built engine,
+seeded bank): `insert_questions` adds a note with tags `[mcat-ai, mcat-ai-verified,
+mcat-question]` in `MCAT Practice::Biochemistry`, Explanation carries the Source footer,
+`unseen_count` 15→16, and `speedrun_next_question` still serves. `py_compile` + offscreen
+`import aqt.speedrun` clean.
+
+**Mobile.** Generated questions are standard synced objects (notes/cards), so they reach
+AnkiDroid through Anki's normal collection sync — no on-device key needed (deliberately, to keep
+the API key off the phone). On-device generation on Android is a possible later add.
+
+**SECURITY.** The API key was shared in plaintext in chat during this work; it must be rotated.
+No key is stored in the repo (env var / local profile only).
+
+**Follow-up — visible AI mode switch.** Replaced the buried auto-gen checkbox with a clear
+three-way switch + status dot in the panel: **Off** (bank only), **Manual** (button only),
+**Auto** (background top-up = infinite). Stored in profile (`speedrun_ai_mode`), migrating the
+old `speedrun_ai_autogen` bool → `auto`. Switching to Manual/Auto with no key prompts for one
+(else snaps back to Off). Status dot shows grey Off / orange "no API key" / blue "manual" /
+green "auto" with the active model. `_maybe_autogen` fires only in Auto. Clarified for the user
+that "Start practice"/timed test never call the AI directly — they read the existing bank; only
+the button and Auto top-up generate.
+
+---
+
+## 2026-07-03 — Sync proof, version-compat finding, and CI green-up
+
+**Sync works for questions, per-topic strength, and all three scores — verified.** The scores
+are never persisted; they're recomputed from synced structures (per-topic FSRS strength in
+config `speedrunConcepts`, attempt logs in each question card's `custom_data` `spA`, topic
+points in config). Added a repeatable end-to-end test `speedrun/sync_check.py`: spins up
+Anki's own self-hosted sync server, seeds collection A + logs 24 attempts across topics,
+uploads, downloads into a fresh collection B, and asserts concept strength, attempt logs,
+topic points, and all three scores are identical. Result: all PASS.
+
+**Version alignment turned out unnecessary (no risky downgrade).** Investigated whether the
+desktop (26.05) vs mobile (25.09.2) gap breaks sync. It doesn't: both use the identical sync
+protocol range (v8–v11, `rslib/src/sync/version.rs`) and DB schema range (v11–v18,
+`rslib/src/storage/upgrades/mod.rs`). Sync compatibility is gated on those, not the marketing
+version, so no re-anchor is needed. Corrected the stale "re-anchor desktop to 25.09.2" note in
+HOWTO-RUN.
+
+**CI green-up.** The fork's inherited Anki CI was red. Root causes + fixes:
+
+- **format** (`just fmt`): committed files weren't dprint/rustfmt-formatted → ran `just fix-fmt`.
+- **clippy** (`just lint`): `content.rs::topic_points_for_deck` used `contains_key`+`insert`
+  (`clippy::map_entry`) → switched to the `Entry` API (desktop + mobile copies).
+- **mypy**: `speedrun.py` passed a bare `int` to `get_card` (wrap in `CardId`) and named an
+  attribute `self.finished`, shadowing `QDialog.finished` (a Qt signal) → renamed to
+  `self._finished`.
+- **minilints** (`cargo run -p minilints`): requires the _latest commit's_ author email to be
+  one that has edited `CONTRIBUTORS` (`git log -1 %ae` ∈ `git log %ae CONTRIBUTORS`). Fix = add
+  the committing identity to `CONTRIBUTORS` in a commit authored by that email.
+
+After fixes: `just fmt` clean; `just lint` clean (clippy/mypy/ruff/eslint/svelte/typescript);
+32 Rust + 5 Python speedrun tests pass. (The only failing suite locally is
+`qt/tests/test_installer.py`, which needs network to clone the briefcase app-template —
+environmental, unrelated to our code, passes in real CI.)

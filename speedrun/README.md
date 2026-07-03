@@ -12,7 +12,7 @@ agent (or a human) returning with **zero prior context** can rebuild the full
 1. **`PLAN.md`** — the mission, the locked decisions, the phased build plan, and
    the strategy for working in a huge codebase with a limited context window.
 2. **`JOURNAL.md`** — append-only decision log / narrative of what was done and
-   *why*. The newest entry at the bottom is the current state of the world.
+   _why_. The newest entry at the bottom is the current state of the world.
 3. **`REPO-MAP.md`** — where things live in the Anki tree (navigation index so we
    never re-explore from scratch).
 4. **`TOUCHED-UPSTREAM.md`** — ledger of every upstream Anki file we modify
@@ -26,7 +26,7 @@ agent (or a human) returning with **zero prior context** can rebuild the full
 - When you edit a file that shipped with upstream Anki, **log it in
   `TOUCHED-UPSTREAM.md`** immediately.
 - `PLAN.md` is the only "living" doc you may edit in place (to update status),
-  but record *why* the plan changed in `JOURNAL.md`.
+  but record _why_ the plan changed in `JOURNAL.md`.
 
 ## One-paragraph project summary
 

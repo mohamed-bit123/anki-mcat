@@ -1,4 +1,4 @@
-// Copyright: MCAT Speedrun fork
+// Copyright: Ankitects Pty Ltd and contributors
 // License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 //! Concept-level FSRS scheduling for application questions.
@@ -44,8 +44,8 @@ pub const CONCEPTS_CONFIG_KEY: &str = "speedrunConcepts";
 pub const DESIRED_RETENTION: f32 = 0.9;
 /// A gentle daily floor: below this you're unlikely to make steady progress.
 pub const RECOMMENDED_DAILY_MIN: u32 = 20;
-/// A soft daily ceiling: past this, added questions show diminishing returns and
-/// risk crowding out spaced review of other material.
+/// A soft daily ceiling: past this, added questions show diminishing returns
+/// and risk crowding out spaced review of other material.
 pub const RECOMMENDED_DAILY_MAX: u32 = 60;
 
 /// Per-concept FSRS memory state plus light bookkeeping. Stored in config so it
@@ -95,8 +95,9 @@ fn deck_leaf(human_name: &str) -> &str {
 }
 
 impl Collection {
-    /// Updates the FSRS memory state for the concept a question belongs to, from
-    /// one graded answer. Called by [`Collection::speedrun_record_attempt`].
+    /// Updates the FSRS memory state for the concept a question belongs to,
+    /// from one graded answer. Called by
+    /// [`Collection::speedrun_record_attempt`].
     pub(crate) fn speedrun_update_concept(
         &mut self,
         deck_id: DeckId,
@@ -228,13 +229,13 @@ impl Collection {
         // and within a single session:
         //   * urgency = 1 - R  → concepts genuinely due (from prior days, low R)
         //     dominate; this is the real FSRS spacing signal.
-        //   * a small urgency floor so that when *everything* was just reviewed
-        //     today (all R≈1, no spacing signal left) there's still a positive
-        //     base to differentiate on.
+        //   * a small urgency floor so that when *everything* was just reviewed today
+        //     (all R≈1, no spacing signal left) there's still a positive base to
+        //     differentiate on.
         //   * / (1 + times_today) → each rep of a concept today lowers its next
-        //     priority, so a session rotates across concepts (interleaving) and
-        //     yields roughly yield-proportional coverage instead of hammering the
-        //     single highest-yield subject.
+        //     priority, so a session rotates across concepts (interleaving) and yields
+        //     roughly yield-proportional coverage instead of hammering the single
+        //     highest-yield subject.
         const URGENCY_FLOOR: f32 = 0.05;
         let best = groups
             .into_values()
@@ -244,8 +245,18 @@ impl Collection {
                 // Within the concept, least-recently-seen first (unseen before
                 // any attempted), then fewest attempts, then stable by id.
                 g.cands.sort_by(|a, b| {
-                    let a_key = (a.last_day.is_some(), a.last_day.unwrap_or(i64::MIN), a.attempts, a.card_id.0);
-                    let b_key = (b.last_day.is_some(), b.last_day.unwrap_or(i64::MIN), b.attempts, b.card_id.0);
+                    let a_key = (
+                        a.last_day.is_some(),
+                        a.last_day.unwrap_or(i64::MIN),
+                        a.attempts,
+                        a.card_id.0,
+                    );
+                    let b_key = (
+                        b.last_day.is_some(),
+                        b.last_day.unwrap_or(i64::MIN),
+                        b.attempts,
+                        b.card_id.0,
+                    );
                     a_key.cmp(&b_key)
                 });
                 (priority, g)
@@ -254,7 +265,11 @@ impl Collection {
                 pa.partial_cmp(pb)
                     .unwrap_or(std::cmp::Ordering::Equal)
                     // Deterministic tie-break: higher yield, then name.
-                    .then(ga.points.partial_cmp(&gb.points).unwrap_or(std::cmp::Ordering::Equal))
+                    .then(
+                        ga.points
+                            .partial_cmp(&gb.points)
+                            .unwrap_or(std::cmp::Ordering::Equal),
+                    )
                     .then(gb.display.cmp(&ga.display))
             });
 
@@ -306,7 +321,11 @@ mod test {
         note.set_field(0, "stem").unwrap();
         note.tags.push(QUESTION_TAG.to_string());
         col.add_note(&mut note, did).unwrap();
-        let mut card = col.storage.get_card_by_ordinal(note.id, 0).unwrap().unwrap();
+        let mut card = col
+            .storage
+            .get_card_by_ordinal(note.id, 0)
+            .unwrap()
+            .unwrap();
         card.ctype = CardType::New;
         let id = card.id;
         col.update_cards_maybe_undoable(vec![card], false).unwrap();
@@ -340,7 +359,10 @@ mod test {
         // the FSRS dynamics — Biology's retrievability just jumped).
         let second = col.speedrun_next_question().unwrap();
         let q2 = second.question.unwrap();
-        assert_ne!(q2.topic, "Biology", "should interleave to a different concept");
+        assert_ne!(
+            q2.topic, "Biology",
+            "should interleave to a different concept"
+        );
         assert_eq!(second.answered_today, 1);
     }
 
@@ -365,10 +387,17 @@ mod test {
         // All three concepts must appear, and no single concept may dominate the
         // whole session.
         let distinct: std::collections::HashSet<_> = served.iter().collect();
-        assert_eq!(distinct.len(), 3, "all concepts should be practiced: {served:?}");
+        assert_eq!(
+            distinct.len(),
+            3,
+            "all concepts should be practiced: {served:?}"
+        );
         for subject in ["Biochemistry", "Biology", "Physics"] {
             let n = served.iter().filter(|t| *t == subject).count();
-            assert!(n <= 6, "{subject} dominated the session ({n}/12): {served:?}");
+            assert!(
+                n <= 6,
+                "{subject} dominated the session ({n}/12): {served:?}"
+            );
         }
     }
 
@@ -383,7 +412,10 @@ mod test {
         assert!(state.seen);
         assert_eq!(state.reps, 1);
         assert!(state.stability > 0.0);
-        assert!(state.due_day > state.last_day, "should schedule into the future");
+        assert!(
+            state.due_day > state.last_day,
+            "should schedule into the future"
+        );
 
         let next = col.speedrun_next_question().unwrap();
         assert_eq!(next.answered_today, 1);

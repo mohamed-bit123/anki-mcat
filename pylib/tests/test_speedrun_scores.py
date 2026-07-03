@@ -1,4 +1,4 @@
-# Copyright: MCAT Speedrun fork
+# Copyright: Ankitects Pty Ltd and contributors
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 """End-to-end test of the three Speedrun scores through the proto seam.

@@ -71,10 +71,9 @@ impl crate::services::SchedulerService for Collection {
         Ok((&scores).into())
     }
 
-    /// Speedrun (MCAT fork): application-question ids in weakness-weighted order.
-    fn speedrun_next_questions(
-        &mut self,
-    ) -> Result<scheduler::SpeedrunNextQuestionsResponse> {
+    /// Speedrun (MCAT fork): application-question ids in weakness-weighted
+    /// order.
+    fn speedrun_next_questions(&mut self) -> Result<scheduler::SpeedrunNextQuestionsResponse> {
         use scheduler::speedrun_next_questions_response as pb;
         let ranked = self.speedrun_next_questions()?;
         Ok(scheduler::SpeedrunNextQuestionsResponse {
@@ -107,7 +106,8 @@ impl crate::services::SchedulerService for Collection {
         })
     }
 
-    /// Speedrun (MCAT fork): seed the built-in MCAT flashcard deck (idempotent).
+    /// Speedrun (MCAT fork): seed the built-in MCAT flashcard deck
+    /// (idempotent).
     fn speedrun_seed_builtin(&mut self) -> Result<generic::UInt32> {
         let added = self.speedrun_seed_builtin()?;
         Ok((added as u32).into())

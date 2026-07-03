@@ -1,4 +1,4 @@
-# Copyright: MCAT Speedrun fork
+# Copyright: Ankitects Pty Ltd and contributors
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 """End-to-end test of the Speedrun points-at-stake review ordering.
@@ -38,9 +38,7 @@ def _set_review_order(col, value):
 
 
 def _queue_order(col):
-    queued = col._backend.get_queued_cards(
-        fetch_limit=10, intraday_learning_only=False
-    )
+    queued = col._backend.get_queued_cards(fetch_limit=10, intraday_learning_only=False)
     return [c.card.id for c in queued.cards]
 
 

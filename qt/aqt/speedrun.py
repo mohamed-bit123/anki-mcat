@@ -1,4 +1,4 @@
-# Copyright: MCAT Speedrun fork
+# Copyright: Ankitects Pty Ltd and contributors
 # License: GNU AGPL, version 3 or later; http://www.gnu.org/licenses/agpl.html
 
 """Desktop UI for the MCAT Speedrun: a practice-question runner and a live,
@@ -15,9 +15,19 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING
 
+from anki.cards import CardId
 from anki.notes import Note
+from aqt import speedrun_ai as ai
 from aqt.qt import *
-from aqt.utils import disable_help_button, restoreGeom, saveGeom, showInfo, tooltip
+from aqt.utils import (
+    disable_help_button,
+    getText,
+    restoreGeom,
+    saveGeom,
+    showInfo,
+    showWarning,
+    tooltip,
+)
 
 if TYPE_CHECKING:
     from aqt.main import AnkiQt
@@ -56,10 +66,12 @@ class SpeedrunDialog(QDialog):
         self.rec_min = 0
         self.rec_max = 0
         self.answered = False
+        self._generating = False
 
         self._build_ui()
         restoreGeom(self, "speedrun")
         self.refresh_scores()
+        self._init_ai_mode()
         self._update_practice_controls()
 
     # UI construction ---------------------------------------------------------
@@ -80,6 +92,29 @@ class SpeedrunDialog(QDialog):
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         layout.addWidget(line)
+
+        # AI mode switch + status indicator.
+        ai_row = QHBoxLayout()
+        ai_row.addWidget(QLabel("AI question generation:"))
+        self.ai_mode_combo = QComboBox()
+        self.ai_mode_combo.addItem("Off — use the built-in bank only", ai.MODE_OFF)
+        self.ai_mode_combo.addItem("Manual — generate when I click", ai.MODE_MANUAL)
+        self.ai_mode_combo.addItem(
+            "Auto — keep topics stocked (infinite)", ai.MODE_AUTO
+        )
+        self.ai_mode_combo.setToolTip(
+            "Off: never calls the AI; the app works fully on the built-in bank.\n"
+            "Manual: the “Generate with AI” button works, nothing runs on its own.\n"
+            "Auto: also generates more in the background when a subject runs low, so "
+            "practice never runs out."
+        )
+        self.ai_mode_combo.currentIndexChanged.connect(self._on_ai_mode_changed)
+        ai_row.addWidget(self.ai_mode_combo)
+        self.ai_status_label = QLabel("")
+        self.ai_status_label.setTextFormat(Qt.TextFormat.RichText)
+        ai_row.addWidget(self.ai_status_label)
+        ai_row.addStretch(1)
+        layout.addLayout(ai_row)
 
         # Practice area.
         self.daily_label = QLabel("")
@@ -166,6 +201,17 @@ class SpeedrunDialog(QDialog):
         )
         self.setup_button.clicked.connect(self.on_setup_mcat)
         controls.addWidget(self.setup_button)
+
+        self.generate_button = QPushButton("Generate with AI")
+        self.generate_button.setToolTip(
+            "Create fresh MCAT questions with AI, grounded in the built-in "
+            "flashcards for a subject (so sources are traceable). New questions "
+            "join the same bank and are scheduled and scored like any other — the "
+            "bank effectively never runs out. Requires an OpenAI API key; the app "
+            "works fully without it."
+        )
+        self.generate_button.clicked.connect(self.on_generate_ai)
+        controls.addWidget(self.generate_button)
 
         controls.addStretch(1)
         close_button = QPushButton("Close")
@@ -284,7 +330,7 @@ class SpeedrunDialog(QDialog):
             )
             return
         try:
-            card = col.get_card(resp.card_id)
+            card = col.get_card(CardId(resp.card_id))
         except Exception:
             self.stem_label.setText("Could not load the next question.")
             return
@@ -295,6 +341,141 @@ class SpeedrunDialog(QDialog):
         else:
             why = f"concept recall ≈ {resp.concept_retrievability * 100:.0f}%"
         self._show_current(why)
+        self._maybe_autogen(self.current_question.topic)
+
+    # AI generation -----------------------------------------------------------
+
+    AUTOGEN_THRESHOLD = 3  # top up a topic when this few unseen questions remain
+    AUTOGEN_BATCH = 5
+
+    def _init_ai_mode(self) -> None:
+        self._syncing_ai_mode = True
+        idx = self.ai_mode_combo.findData(ai.get_mode(self.mw))
+        self.ai_mode_combo.setCurrentIndex(max(0, idx))
+        self._syncing_ai_mode = False
+        self._update_ai_indicator()
+
+    def _on_ai_mode_changed(self, _index: int) -> None:
+        if getattr(self, "_syncing_ai_mode", False):
+            return
+        mode = self.ai_mode_combo.currentData()
+        # Switching AI on needs a key; prompt once, or fall back to Off.
+        if mode != ai.MODE_OFF and not ai.ai_available(self.mw):
+            if not self._prompt_for_key():
+                self._syncing_ai_mode = True
+                self.ai_mode_combo.setCurrentIndex(
+                    self.ai_mode_combo.findData(ai.MODE_OFF)
+                )
+                self._syncing_ai_mode = False
+                mode = ai.MODE_OFF
+        ai.set_mode(self.mw, mode)
+        self._update_ai_indicator()
+        self._update_practice_controls()
+
+    def _update_ai_indicator(self) -> None:
+        mode = ai.get_mode(self.mw)
+        has_key = ai.ai_available(self.mw)
+        if mode == ai.MODE_OFF:
+            self.ai_status_label.setText(
+                "<span style='color:palette(mid)'>● Off</span>"
+            )
+        elif not has_key:
+            self.ai_status_label.setText(
+                "<span style='color:#ef6c00'>● no API key set</span>"
+            )
+        elif mode == ai.MODE_AUTO:
+            self.ai_status_label.setText(
+                f"<span style='color:#2e7d32'>● On · auto · {ai.get_model(self.mw)}</span>"
+            )
+        else:
+            self.ai_status_label.setText(
+                f"<span style='color:#1565c0'>● On · manual · {ai.get_model(self.mw)}</span>"
+            )
+
+    def _maybe_autogen(self, topic: str) -> None:
+        """When enabled, keep the served topic stocked so it never runs dry."""
+        if self._generating or not topic:
+            return
+        if not ai.autogen_enabled(self.mw) or not ai.ai_available(self.mw):
+            return
+        try:
+            if ai.unseen_count(self.mw.col, topic) > self.AUTOGEN_THRESHOLD:
+                return
+        except Exception:
+            return
+        self._run_generation(topic, self.AUTOGEN_BATCH, verify=False, quiet=True)
+
+    def on_generate_ai(self) -> None:
+        if not ai.available_topics(self.mw.col):
+            showInfo(
+                "Set up the MCAT content first — generation is grounded in the "
+                "built-in flashcards for each subject.",
+                parent=self,
+            )
+            return
+        if not ai.ai_available(self.mw):
+            if not self._prompt_for_key():
+                return
+        dialog = GenerateDialog(self, self.mw)
+        if not dialog.exec():
+            return
+        cfg = dialog.result_config()
+        self._run_generation(cfg["topic"], cfg["count"], verify=cfg["verify"])
+
+    def _prompt_for_key(self) -> bool:
+        key, ok = getText(
+            "Paste your OpenAI API key (stored locally in this profile only, "
+            "never in the project):",
+            parent=self,
+            title="OpenAI API key",
+        )
+        if not ok or not key.strip():
+            return False
+        ai.set_api_key(self.mw, key.strip())
+        return True
+
+    def _run_generation(
+        self, topic: str, count: int, verify: bool, quiet: bool = False
+    ) -> None:
+        if self._generating:
+            return
+        col = self.mw.col
+        facts = ai.source_facts(col, topic)
+        avoid = ai.existing_stems(col, topic)
+        self._generating = True
+
+        def task() -> ai.GenerationResult:
+            return ai.generate_questions(self.mw, topic, count, facts, avoid, verify)
+
+        def on_done(future) -> None:
+            self._generating = False
+            try:
+                result = future.result()
+            except ai.AIError as e:
+                if not quiet:
+                    showWarning(str(e), parent=self, title="AI generation failed")
+                return
+            except Exception as e:  # pragma: no cover - defensive
+                if not quiet:
+                    showWarning(f"Unexpected error: {e}", parent=self)
+                return
+            try:
+                added = ai.insert_questions(col, result)
+            except ai.AIError as e:
+                if not quiet:
+                    showWarning(str(e), parent=self)
+                return
+            self.mw.reset()
+            self._update_practice_controls()
+            self.refresh_scores()
+            if not quiet:
+                msg = f"Added {added} AI question(s) for {topic}."
+                if result.rejected:
+                    msg += f" Rejected {result.rejected} (validation/verifier)."
+                tooltip(msg, parent=self)
+
+        label = f"Generating {count} {topic} question(s)…"
+        self.mw.taskman.with_progress(task, on_done, parent=self, label=label)
 
     def _show_current(self, why: str) -> None:
         self.answered = False
@@ -326,9 +507,7 @@ class SpeedrunDialog(QDialog):
         if correct:
             self.session_correct += 1
 
-        self.mw.col._backend.speedrun_record_attempt(
-            card_id=q.card_id, correct=correct
-        )
+        self.mw.col._backend.speedrun_record_attempt(card_id=q.card_id, correct=correct)
 
         self.dont_know_button.setEnabled(False)
         for opt_letter, btn in self.option_buttons.items():
@@ -424,6 +603,11 @@ class SpeedrunDialog(QDialog):
         count = len(self.mw.col.find_notes(f"tag:{QUESTION_TAG}"))
         self.start_button.setEnabled(count > 0)
         self.test_button.setEnabled(count > 0)
+        # AI generation is grounded in the built-in flashcards, so it needs the
+        # content set up first, and only makes sense when AI isn't Off.
+        has_flashcards = bool(self.mw.col.find_notes(f"tag:{FLASHCARD_TAG}"))
+        self.generate_button.setEnabled(has_flashcards and ai.ai_on(self.mw))
+        self._update_ai_indicator()
         if count == 0:
             self.stem_label.setText(
                 "No application questions yet. Click “Set up MCAT content” to load "
@@ -445,6 +629,86 @@ class SpeedrunDialog(QDialog):
     def accept(self) -> None:
         saveGeom(self, "speedrun")
         super().accept()
+
+
+class GenerateDialog(QDialog):
+    """Configure an AI generation batch and (optionally) manage the key/model."""
+
+    def __init__(self, parent: QDialog, mw: AnkiQt) -> None:
+        super().__init__(parent)
+        self.mw = mw
+        self.setWindowTitle("Generate MCAT questions with AI")
+        disable_help_button(self)
+        self.resize(460, 0)
+
+        layout = QVBoxLayout(self)
+        blurb = QLabel(
+            "Questions are <b>grounded in the built-in flashcards</b> for the "
+            "chosen subject, so each one cites the source fact it tests. They join "
+            "the same bank and are scheduled/scored like every other question."
+        )
+        blurb.setWordWrap(True)
+        layout.addWidget(blurb)
+
+        form = QFormLayout()
+        self.topic_combo = QComboBox()
+        for topic in ai.available_topics(mw.col):
+            self.topic_combo.addItem(topic)
+        form.addRow("Subject", self.topic_combo)
+
+        self.count_spin = QSpinBox()
+        self.count_spin.setRange(1, 25)
+        self.count_spin.setValue(5)
+        form.addRow("How many", self.count_spin)
+
+        self.model_edit = QLineEdit(ai.get_model(mw))
+        self.model_edit.setPlaceholderText(ai.DEFAULT_MODEL)
+        form.addRow("Model", self.model_edit)
+
+        self.key_edit = QLineEdit(ai.get_api_key(mw) or "")
+        self.key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.key_edit.setPlaceholderText("sk-… (stored locally only)")
+        form.addRow("API key", self.key_edit)
+        layout.addLayout(form)
+
+        self.verify_check = QCheckBox(
+            "Double-check each question with an independent AI pass (slower, "
+            "higher quality)"
+        )
+        self.verify_check.setChecked(True)
+        layout.addWidget(self.verify_check)
+
+        hint = QLabel(
+            "Tip: set the panel’s AI mode to <b>Auto</b> to keep subjects stocked "
+            "automatically during practice."
+        )
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: palette(mid); font-size: 11px;")
+        layout.addWidget(hint)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Generate")
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _on_accept(self) -> None:
+        key = self.key_edit.text().strip()
+        if not key:
+            showWarning("An OpenAI API key is required to generate.", parent=self)
+            return
+        ai.set_api_key(self.mw, key)
+        ai.set_model(self.mw, self.model_edit.text().strip())
+        self.accept()
+
+    def result_config(self) -> dict:
+        return {
+            "topic": self.topic_combo.currentText(),
+            "count": self.count_spin.value(),
+            "verify": self.verify_check.isChecked(),
+        }
 
 
 class TestSetupDialog(QDialog):
@@ -563,7 +827,7 @@ class TestRunnerDialog(QDialog):
         self.timed: bool = config["timed"]
         self.total_seconds: int = config["seconds"]
         self.remaining: int = config["seconds"]
-        self.finished = False
+        self._finished = False
         self.timer: QTimer | None = None
 
         self._build_ui()
@@ -718,9 +982,9 @@ class TestRunnerDialog(QDialog):
     # Finish + summary --------------------------------------------------------
 
     def finish(self, auto: bool) -> None:
-        if self.finished:
+        if self._finished:
             return
-        self.finished = True
+        self._finished = True
         if self.timer is not None:
             self.timer.stop()
 

@@ -68,17 +68,21 @@ service SchedulerService {
   // Rust engine reaches every client (desktop + mobile) through the proto seam.
   rpc SpeedrunPing(generic.Empty) returns (generic.String);
   // Speedrun (MCAT fork): log one graded answer to an application question.
-  rpc SpeedrunRecordAttempt(SpeedrunRecordAttemptRequest) returns (generic.Empty);
-  // Speedrun (MCAT fork): compute the three scores (Memory/Performance/Readiness).
+  rpc SpeedrunRecordAttempt(SpeedrunRecordAttemptRequest)
+      returns (generic.Empty);
+  // Speedrun (MCAT fork): compute the three scores
+  // (Memory/Performance/Readiness).
   rpc SpeedrunScores(generic.Empty) returns (SpeedrunScoresResponse);
   // Speedrun (MCAT fork): application-question ids in weakness-weighted order
   // (the question analogue of the points-at-stake review queue).
-  rpc SpeedrunNextQuestions(generic.Empty) returns (SpeedrunNextQuestionsResponse);
+  rpc SpeedrunNextQuestions(generic.Empty)
+      returns (SpeedrunNextQuestionsResponse);
   // Speedrun (MCAT fork): the next single application question, chosen by
   // concept-level FSRS scheduling (which concept is most due right now), plus
   // today's answered count and the recommended daily min/max. Drives the
   // open-ended, one-question-at-a-time practice runner.
-  rpc SpeedrunNextQuestion(generic.Empty) returns (SpeedrunNextQuestionResponse);
+  rpc SpeedrunNextQuestion(generic.Empty)
+      returns (SpeedrunNextQuestionResponse);
   // Speedrun (MCAT fork): seed the built-in MCAT flashcard deck (idempotent).
   // Returns the number of cards added (0 if already present).
   rpc SpeedrunSeedBuiltin(generic.Empty) returns (generic.UInt32);
