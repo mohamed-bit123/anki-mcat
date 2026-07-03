@@ -1,8 +1,7 @@
 ./ninja pylib qt
-    Finished `release` profile [optimized] target(s) in 0.45s
+[1m[92m    Finished[0m `release` profile [optimized] target(s) in 0.64s
 build:configure
-pylib:rsbridge
-pylib:anki:rsbridge
-n2: ran 3 tasks, now up to date
-
-Build succeeded in 7.29s.
+n2: ran 1 task, now up to date
+[0m[1m[32m
+Build succeeded in 0.13s.
+[0m
