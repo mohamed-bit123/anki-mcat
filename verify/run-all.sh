@@ -43,10 +43,26 @@ section "3/5 Python end-to-end tests"
   pylib/tests/test_speedrun_scores.py \
   pylib/tests/test_speedrun_seed.py 2>&1 | tee "$ART/tests-python.txt" | tail -n 4
 
-section "4/5 desktop<->mobile sync round-trip"
+section "4/8 desktop<->mobile sync round-trip"
 "$PYENV" speedrun/sync_check.py 2>&1 | tee "$ART/sync.txt" | tail -n 6
 
-section "5/5 latency benchmark (p50/p95/worst vs targets)"
+section "5/8 offline conflict merge (§7b) + 20x crash safety (§7g)"
+"$PYENV" verify/conflict_check.py 2>&1 | tail -n 4
+"$PYENV" verify/crash_test.py 2>&1 | tail -n 3
+
+section "6/8 held-out model evals (memory / performance / paraphrase / leakage)"
+"$PYENV" verify/calibration.py --out "$ART/calibration.md" 2>&1 | tail -n 2
+"$PYENV" verify/performance_eval.py --out "$ART/performance.md" 2>&1 | tail -n 2
+"$PYENV" verify/paraphrase.py --out "$ART/paraphrase.md" 2>&1 | tail -n 2
+"$PYENV" verify/leakage.py --out "$ART/leakage.md" 2>&1 | tail -n 2
+
+section "7/8 study-feature ablation (§8) + outline coverage (§7c) + AI gold set (§7f)"
+"$PYENV" verify/ablation.py --out "$ART/ablation.md" 2>&1 | tail -n 2
+"$PYENV" verify/coverage_map.py --out "$ART/coverage.md" 2>&1 | tail -n 2
+# Baselines run offline; add --use-ai with OPENAI_API_KEY for the AI row.
+"$PYENV" verify/goldset.py ${OPENAI_API_KEY:+--use-ai} --out "$ART/goldset.md" 2>&1 | tail -n 2
+
+section "8/8 latency benchmark (p50/p95/worst vs targets)"
 "$PYENV" verify/bench.py --iters 300 --out "$ART/latency.md" 2>&1 | tail -n 14
 
 echo

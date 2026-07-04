@@ -1,0 +1,39 @@
+# Official MCAT content outline (AAMC), used by verify/coverage_map.py to
+# measure how much of the exam the built-in bank covers (brief §7c / §4 "% of
+# the exam covered"). One row per official *content category*.
+# Columns: section_code <TAB> section_name <TAB> category_code <TAB> category_name <TAB> keywords
+# keywords are comma-separated terms used to match bank cards to the category.
+# CARS (section 4) is a skills section with no content categories, so it is
+# listed once and excluded from content-coverage math (documented in the report).
+BB	Biological and Biochemical Foundations	1A	Structure/function of proteins and amino acids	amino acid,protein,peptide,enzyme,denaturation,secondary structure,tertiary,quaternary
+BB	Biological and Biochemical Foundations	1B	Transmission of genetic information (molecular)	dna,rna,transcription,translation,replication,codon,mutation,gene expression
+BB	Biological and Biochemical Foundations	1C	Transmission of heritable information (genetics/evolution)	mendelian,allele,genotype,phenotype,evolution,hardy-weinberg,natural selection,recombination
+BB	Biological and Biochemical Foundations	1D	Principles of bioenergetics and fuel molecule metabolism	glycolysis,citric acid,krebs,oxidative phosphorylation,atp,gluconeogenesis,fatty acid,metabolism
+BB	Biological and Biochemical Foundations	2A	Assemblies of molecules, cells, and groups of cells	membrane,phospholipid,organelle,mitochondria,cytoskeleton,virus,prokaryote,eukaryote
+BB	Biological and Biochemical Foundations	2B	Structure and integrative functions of organ systems	digestive,respiratory,immune,muscular,skeletal,homeostasis,organ system
+BB	Biological and Biochemical Foundations	2C	Processes of cell division, differentiation, specialization	mitosis,meiosis,cell cycle,apoptosis,stem cell,differentiation
+BB	Biological and Biochemical Foundations	3A	Structure/function of the nervous and endocrine systems	neuron,action potential,synapse,neurotransmitter,hormone,endocrine,pituitary
+BB	Biological and Biochemical Foundations	3B	Structure/function of the circulatory and other systems	heart,blood,circulation,kidney,nephron,cardiac,vascular
+CP	Chemical and Physical Foundations	4A	Translational motion, forces, work, energy	force,newton,velocity,acceleration,momentum,work,kinetic energy,gravity
+CP	Chemical and Physical Foundations	4B	Importance of fluids for living systems	fluid,pressure,buoyancy,viscosity,bernoulli,density,flow
+CP	Chemical and Physical Foundations	4C	Electrochemistry and electrical circuits	circuit,voltage,current,resistance,capacitor,electrochemistry,ohm
+CP	Chemical and Physical Foundations	4D	How light and sound interact with matter	light,wavelength,refraction,reflection,sound,doppler,optics,lens
+CP	Chemical and Physical Foundations	4E	Atoms, nuclear decay, electronic structure	atom,electron,orbital,nuclear,isotope,quantum,periodic
+CP	Chemical and Physical Foundations	5A	Unique nature of water and its solutions	water,solubility,ph,acid,base,buffer,titration,hydrogen bond
+CP	Chemical and Physical Foundations	5B	Nature of molecules and intermolecular interactions	bond,polarity,intermolecular,dipole,van der waals,lewis structure
+CP	Chemical and Physical Foundations	5C	Separation and purification methods	chromatography,distillation,extraction,electrophoresis,filtration
+CP	Chemical and Physical Foundations	5D	Structure, function, and reactivity of biological molecules (organic)	carbonyl,alcohol,carboxylic acid,nucleophile,stereochemistry,functional group,aromatic
+CP	Chemical and Physical Foundations	5E	Principles of chemical thermodynamics and kinetics	enthalpy,entropy,gibbs,equilibrium,rate,catalyst,thermodynamics,kinetics
+PS	Psychological, Social, and Biological Foundations of Behavior	6A	Sensing the environment	sensation,perception,threshold,receptor,vision,hearing,signal detection
+PS	Psychological, Social, and Biological Foundations of Behavior	6B	Making sense of the environment	memory,attention,cognition,learning,intelligence,problem solving
+PS	Psychological, Social, and Biological Foundations of Behavior	6C	Responding to the world	emotion,stress,motivation,arousal,amygdala
+PS	Psychological, Social, and Biological Foundations of Behavior	7A	Individual influences on behavior	personality,temperament,drive,instinct,biological basis of behavior
+PS	Psychological, Social, and Biological Foundations of Behavior	7B	Social processes that influence behavior	conformity,obedience,group,socialization,social facilitation
+PS	Psychological, Social, and Biological Foundations of Behavior	7C	Attitude and behavior change	attitude,persuasion,cognitive dissonance,conditioning,reinforcement
+PS	Psychological, Social, and Biological Foundations of Behavior	8A	Self-identity	self-concept,identity,self-esteem,self-efficacy,socialization
+PS	Psychological, Social, and Biological Foundations of Behavior	8B	Social thinking	attribution,stereotype,prejudice,discrimination,bias
+PS	Psychological, Social, and Biological Foundations of Behavior	8C	Social interactions	altruism,aggression,attraction,social support,discrimination
+PS	Psychological, Social, and Biological Foundations of Behavior	9A	Understanding social structure	social institution,culture,norm,status,role,social structure
+PS	Psychological, Social, and Biological Foundations of Behavior	9B	Demographic characteristics and processes	demographic,population,migration,urbanization,fertility
+PS	Psychological, Social, and Biological Foundations of Behavior	10A	Social inequality	inequality,poverty,class,social mobility,discrimination,disparity
+CARS	Critical Analysis and Reasoning Skills	CARS	Reading comprehension and reasoning (skills, no content)	reasoning,comprehension,argument

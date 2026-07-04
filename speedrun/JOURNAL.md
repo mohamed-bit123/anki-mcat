@@ -838,3 +838,42 @@ evidence + exact commands instead. Desktop `.dmg`/`.exe` come from the release w
 (briefcase, needs network); mobile installer is the AnkiDroid APK.
 
 Linked the hub from `speedrun/README.md`, `HOWTO-RUN.md`, and `REPO-MAP.md`.
+
+## Closing the brief's remaining proof gaps (§7b–g, §8, §9)
+
+Continued the verification work: filled every outstanding brief requirement with a
+re-runnable script + committed artifact under `verify/`. All honest — simulations are
+labelled as such and swap in real data via documented hooks.
+
+- **7b offline conflict** (`verify/conflict_check.py` → `artifacts/conflict.md`): two
+  devices review overlapping cards offline through Anki's own sync server, then merge.
+  Reviews (append-only revlog) merge with **0 lost / 0 double-counted** (union=30 on both);
+  disjoint practice attempts converge to identical MCAT state + scores. Documented the
+  honest edge case: concurrent edits to the _same_ question's `custom_data` are
+  last-writer-wins (reviews unaffected).
+- **7g crash safety** (`verify/crash_test.py` → `artifacts/crash.md`): 20 rounds of
+  `SIGKILL` mid-write, then reopen + `pragma integrity_check`. **20/20** consistent, no
+  committed data lost (SQLite per-transaction atomicity, shown end-to-end).
+- **§8 ablation** (`verify/ablation.py` → `artifacts/ablation.md`): interleaving OFF vs ON
+  at equal study budget. ON nearly quadruples delayed recall (11%→46%); weakness-weighting
+  trades a little average recall to lift the hardest third 12%→29% (its real objective).
+  Chose two honest metrics over forcing a monotonic chain.
+- **7c coverage** (`speedrun/mcat_outline.tsv` + `verify/coverage_map.py` →
+  `artifacts/coverage.md`): bank matched against the official AAMC content outline (31
+  content categories). **29/31 = 94%** at a depth bar of 3 cards/category; gaps listed
+  (2B, 5C) as the "next to build". This is the number Readiness reports as "% covered".
+- **7d paraphrase / 7e leakage / §9.1 memory calibration / §9.2 performance**: already had
+  scripts + artifacts; wired them into `run-all.sh` and the hub table.
+- **7f AI gold set** (`verify/goldset.py` → `artifacts/goldset.md`): 50 held-out questions,
+  answered by keyword baseline, TF-IDF vector baseline, and `gpt-4o-mini`. **AI 100%** vs
+  vector 60% / keyword 36% — clears the ≥80% cutoff and beats both. Baselines run offline;
+  AI arm runs when a key is present (never committed). Ran live once with the stored key to
+  capture real numbers.
+- **Model one-pagers** (`speedrun/models/`): memory, performance, readiness — each ties the
+  exact `scores.rs` math + give-up rule to its held-out evidence artifact.
+
+Adopted the other agent's committed-but-unpushed work (deps bump clearing the two
+`cargo-deny` advisories; the memory/perf/paraphrase/leakage evals). Everything above is
+`ruff`-clean, `dprint`-formatted, and passes `minilints` locally. Updated
+`REQUIREMENTS-AUDIT.md`: §7a–g, §8, §9.1–9.3 now met; remaining are yours (signed installer +
+clean-install recording, 50k benchmark run, demo video).

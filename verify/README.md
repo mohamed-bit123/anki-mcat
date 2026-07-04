@@ -10,20 +10,34 @@ outputs live in [`artifacts/`](artifacts/).
 bash verify/run-all.sh
 ```
 
-Builds the engine, runs the MCAT Rust + Python test suites, runs the
-desktop↔mobile sync round-trip, and runs the latency benchmark — writing each
-result to `verify/artifacts/`. (Needs the build prerequisites in
-[`../speedrun/TESTING.md`](../speedrun/TESTING.md).)
+Builds the engine, runs the MCAT Rust + Python test suites, the desktop↔mobile
+sync round-trip, the offline-conflict and crash-safety tests, the held-out model
+evals (memory calibration, performance, paraphrase, leakage), the study-feature
+ablation, the outline-coverage map, the AI gold-set vs. baseline comparison, and
+the latency benchmark — writing each result to `verify/artifacts/`. (Needs the
+build prerequisites in [`../speedrun/TESTING.md`](../speedrun/TESTING.md). The AI
+gold-set row needs `OPENAI_API_KEY`; without it the baselines still run.)
 
 ## What to look at
 
-| Concern       | How to reproduce                                                      | Artifact                                                                                                           | Latest result                                                               |
-| ------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| **Build**     | `just build`                                                          | [`artifacts/build.log`](artifacts/build.log), [`artifacts/build-proof.txt`](artifacts/build-proof.txt)             | ✅ builds; custom RPC live: `speedrun: scheduler engine alive (anki 26.05)` |
-| **Installer** | `just wheels`                                                         | [`artifacts/wheels.log`](artifacts/wheels.log)                                                                     | ✅ `anki-26.5` (15M, embeds Rust engine) + `aqt-26.5` (4.4M) wheels         |
-| **Test**      | `cargo test -p anki speedrun::` / `pytest pylib/tests/test_speedrun*` | [`artifacts/tests-rust.txt`](artifacts/tests-rust.txt), [`artifacts/tests-python.txt`](artifacts/tests-python.txt) | ✅ 32 Rust + 5 Python pass                                                  |
-| **Latency**   | `python verify/bench.py`                                              | [`artifacts/latency.md`](artifacts/latency.md)                                                                     | ✅ all p95 far under target (see below)                                     |
-| **Sync**      | `python speedrun/sync_check.py`                                       | [`artifacts/sync.txt`](artifacts/sync.txt)                                                                         | ✅ scores/strength/attempts round-trip identical                            |
+| Concern                 | How to reproduce                                                      | Artifact                                                                                                           | Latest result                                                               |
+| ----------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| **Build**               | `just build`                                                          | [`artifacts/build.log`](artifacts/build.log), [`artifacts/build-proof.txt`](artifacts/build-proof.txt)             | ✅ builds; custom RPC live: `speedrun: scheduler engine alive (anki 26.05)` |
+| **Installer**           | `just wheels`                                                         | [`artifacts/wheels.log`](artifacts/wheels.log)                                                                     | ✅ `anki-26.5` (15M, embeds Rust engine) + `aqt-26.5` (4.4M) wheels         |
+| **Test**                | `cargo test -p anki speedrun::` / `pytest pylib/tests/test_speedrun*` | [`artifacts/tests-rust.txt`](artifacts/tests-rust.txt), [`artifacts/tests-python.txt`](artifacts/tests-python.txt) | ✅ 32 Rust + 5 Python pass                                                  |
+| **Latency**             | `python verify/bench.py`                                              | [`artifacts/latency.md`](artifacts/latency.md)                                                                     | ✅ all p95 far under target (see below)                                     |
+| **Sync**                | `python speedrun/sync_check.py`                                       | [`artifacts/sync.txt`](artifacts/sync.txt)                                                                         | ✅ scores/strength/attempts round-trip identical                            |
+| **Conflict (7b)**       | `python verify/conflict_check.py`                                     | [`artifacts/conflict.md`](artifacts/conflict.md)                                                                   | ✅ offline reviews merge: 0 lost, 0 double-counted; state converges         |
+| **Crash (7g)**          | `python verify/crash_test.py`                                         | [`artifacts/crash.md`](artifacts/crash.md)                                                                         | ✅ 20/20 SIGKILL mid-write → integrity ok, no data loss                     |
+| **Memory calib (§9.1)** | `python verify/calibration.py`                                        | [`artifacts/calibration.md`](artifacts/calibration.md)                                                             | ✅ Brier 0.216 < baseline; ECE 0.024 (well-calibrated)                      |
+| **Performance (§9.2)**  | `python verify/performance_eval.py`                                   | [`artifacts/performance.md`](artifacts/performance.md)                                                             | ✅ 62.9% held-out, beats memory-only predictor                              |
+| **Paraphrase (7d)**     | `python verify/paraphrase.py`                                         | [`artifacts/paraphrase.md`](artifacts/paraphrase.md)                                                               | ✅ ~11-pt memory→performance gap (bridge is real)                           |
+| **Leakage (7e)**        | `python verify/leakage.py`                                            | [`artifacts/leakage.md`](artifacts/leakage.md)                                                                     | ✅ CLEAN — no test item leaks into training                                 |
+| **Ablation (§8)**       | `python verify/ablation.py`                                           | [`artifacts/ablation.md`](artifacts/ablation.md)                                                                   | ✅ interleaving ON 46% vs OFF 11%; weakness lifts hardest third             |
+| **Coverage (7c)**       | `python verify/coverage_map.py`                                       | [`artifacts/coverage.md`](artifacts/coverage.md)                                                                   | ✅ 29/31 (94%) of official AAMC content categories; gaps listed             |
+| **AI gold set (7f)**    | `python verify/goldset.py --use-ai`                                   | [`artifacts/goldset.md`](artifacts/goldset.md)                                                                     | ✅ AI 100% vs vector 60% / keyword 36% (beats baselines, clears cutoff)     |
+
+Model write-ups: [`../speedrun/models/`](../speedrun/models/) (memory, performance, readiness).
 
 ---
 
