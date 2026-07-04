@@ -877,3 +877,28 @@ Adopted the other agent's committed-but-unpushed work (deps bump clearing the tw
 `ruff`-clean, `dprint`-formatted, and passes `minilints` locally. Updated
 `REQUIREMENTS-AUDIT.md`: §7a–g, §8, §9.1–9.3 now met; remaining are yours (signed installer +
 clean-install recording, 50k benchmark run, demo video).
+
+## Full spec compliance pass
+
+Re-audited every requirement against the actual repo and closed the last gaps I could:
+
+- **§7h / §10 large-deck benchmark** — `verify/bench.py` now takes `--cards N`, pads the
+  collection to that size, and reports a cold **dashboard first-load** sample + peak
+  **maxrss**. Ran `--cards 50000`: record_attempt p95 **0.47 ms**, next_question **7.7 ms**,
+  scores refresh **143 ms** (<500), cold load **96 ms** (<1s), peak **~82 MB** — all under
+  target → `verify/artifacts/latency-50k.md`.
+- **§12 root README** — was still stock Anki. Rewrote `README.md`: MCAT stated up front
+  (472–528), the three scores + give-up rules, two-apps-one-engine + mobile repo links, the
+  Rust-change summary, AI-off note, build/verify pointers, and AGPL + Anki credit.
+- **§7a "why Rust, not Python" one-pager** — new `speedrun/RUST-CHANGE.md`: the change, the
+  Rust rationale, the ≥3 Rust unit tests + Python e2e test, the atomic-undo proof
+  (`record_attempt_is_atomically_undoable`) + crash/corruption proof, ships-to-phone, and
+  merge risk.
+
+Verified already-met items: AGPL license + Anki credit (`LICENSE`, README, CONTRIBUTORS);
+40+ Rust unit tests incl. 12 in `queue.rs`; Python test
+`test_speedrun_points_at_stake_reorders_reviews` exercising the Rust order; undo test; the
+three separated scores with ranges + give-up rules in `scores.rs`; AI-off still scores
+(scores are pure Rust, independent of AI). Remaining are genuinely yours: signed/notarized
+desktop installer + clean-machine install recordings (both platforms), the 3–5 min demo
+video, and formatting the Brainlift into the repo.

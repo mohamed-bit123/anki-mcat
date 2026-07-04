@@ -32,18 +32,19 @@ Exam: **MCAT** (472–528, four 118–132 sections). AI off = fully functional.
 - [x] 7e Leakage check `verify/leakage.py` → `artifacts/leakage.md` (CLEAN).
 - [x] 7f AI gold set (50) + accuracy/wrong-rate + cutoff + baseline `verify/goldset.py` → `artifacts/goldset.md`.
 - [x] 7g Crash 20× zero corruption `verify/crash_test.py` → `artifacts/crash.md` (20/20 integrity ok).
-- [~] 7h Benchmark on **50k** cards → `verify/bench.py --cards 50000` (bench exists; 50k run pending).
+- [x] 7h Benchmark on **50k** cards `verify/bench.py --cards 50000` → `artifacts/latency-50k.md` (all p95 under target; ~82 MB).
 
 ## Section 9 (models) & 10 (speed)
 
 - [x] Step 1 memory calibration (Brier/log-loss + chart) `verify/calibration.py` → `artifacts/calibration.md` (+ `calibration.svg`).
 - [x] Step 2 performance on held-out questions `verify/performance_eval.py` → `artifacts/performance.md`.
 - [x] Step 3 score mapping written up → `speedrun/models/` (memory/performance/readiness one-pagers).
-- [~] Speed p50/p95/worst (add 50k + cold-start/memory/sync).
+- [x] Speed p50/p95/worst incl. **50k cards** + cold dashboard load + peak memory (~82 MB) → `artifacts/latency-50k.md`; sync round-trip < 5s in `artifacts/sync.txt`.
 
 ## Section 12 — deliverables
 
-- [~] Root `README.md` (exam/architecture/Rust note up front).
+- [x] Root `README.md` (MCAT stated up front, build for both apps, architecture, Rust-change note → `RUST-CHANGE.md`, files touched → `TOUCHED-UPSTREAM.md`, AGPL + Anki credit).
+- [x] Rust-change one-pager (§7a "why Rust not Python") → `speedrun/RUST-CHANGE.md`.
 - [x] Three model-description one-pagers → `speedrun/models/` (memory, performance, readiness).
 - [ ] Demo video (you) · [~] Brainlift (research exists; format for repo).
 

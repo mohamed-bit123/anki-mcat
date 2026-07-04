@@ -106,44 +106,53 @@ impl Collection {
     /// the card's `custom_data` attempt log.
     pub(crate) fn speedrun_record_attempt(&mut self, card_id: CardId, correct: bool) -> Result<()> {
         let today = self.timing_today()?.days_elapsed as i64;
-        let mut card = self.storage.get_card(card_id)?.or_not_found(card_id)?;
-        let deck_id = card.deck_id;
+        // One atomic, undoable operation: appending the attempt to the card's
+        // log AND advancing the concept's FSRS state happen together, so a
+        // single undo reverts the whole attempt rather than half of it. (A bare
+        // `set_config` after the card transaction closed would not be captured
+        // by undo, leaving the concept state advanced after an undo.)
+        self.transact(Op::UpdateCard, |col| {
+            let mut card = col.storage.get_card(card_id)?.or_not_found(card_id)?;
+            let deck_id = card.deck_id;
 
-        let mut data: Value = if card.custom_data.is_empty() {
-            Value::Object(Default::default())
-        } else {
-            serde_json::from_str(&card.custom_data)
-                .unwrap_or_else(|_| Value::Object(Default::default()))
-        };
-        if !data.is_object() {
-            data = Value::Object(Default::default());
-        }
-        let obj = data.as_object_mut().unwrap();
-        let entries = obj
-            .entry(ATTEMPTS_KEY)
-            .or_insert_with(|| Value::Array(vec![]));
-        let arr = match entries.as_array_mut() {
-            Some(a) => a,
-            None => {
-                *entries = Value::Array(vec![]);
-                entries.as_array_mut().unwrap()
+            let mut data: Value = if card.custom_data.is_empty() {
+                Value::Object(Default::default())
+            } else {
+                serde_json::from_str(&card.custom_data)
+                    .unwrap_or_else(|_| Value::Object(Default::default()))
+            };
+            if !data.is_object() {
+                data = Value::Object(Default::default());
             }
-        };
-        arr.push(Value::Array(vec![
-            Value::from(today),
-            Value::from(if correct { 1 } else { 0 }),
-        ]));
-        if arr.len() > MAX_ATTEMPTS_KEPT {
-            let overflow = arr.len() - MAX_ATTEMPTS_KEPT;
-            arr.drain(0..overflow);
-        }
+            let obj = data.as_object_mut().unwrap();
+            let entries = obj
+                .entry(ATTEMPTS_KEY)
+                .or_insert_with(|| Value::Array(vec![]));
+            let arr = match entries.as_array_mut() {
+                Some(a) => a,
+                None => {
+                    *entries = Value::Array(vec![]);
+                    entries.as_array_mut().unwrap()
+                }
+            };
+            arr.push(Value::Array(vec![
+                Value::from(today),
+                Value::from(if correct { 1 } else { 0 }),
+            ]));
+            if arr.len() > MAX_ATTEMPTS_KEPT {
+                let overflow = arr.len() - MAX_ATTEMPTS_KEPT;
+                arr.drain(0..overflow);
+            }
 
-        card.custom_data = serde_json::to_string(&data)?;
-        card.validate_custom_data()?;
-        self.update_cards_maybe_undoable(vec![card], true)?;
+            card.custom_data = serde_json::to_string(&data)?;
+            card.validate_custom_data()?;
+            let existing = col.storage.get_card(card.id)?.or_not_found(card.id)?;
+            col.update_card_inner(&mut card, existing, col.usn()?)?;
 
-        // Advance the concept's FSRS memory state (concept-level spacing).
-        self.speedrun_update_concept(deck_id, correct, today)?;
+            // Advance the concept's FSRS memory state (concept-level spacing).
+            col.speedrun_update_concept(deck_id, correct, today)?;
+            Ok(())
+        })?;
         Ok(())
     }
 
@@ -408,6 +417,52 @@ mod test {
         assert_eq!(attempts.len(), 2);
         assert!(attempts[0].1); // first correct
         assert!(!attempts[1].1); // second incorrect
+    }
+
+    #[test]
+    fn record_attempt_is_atomically_undoable() {
+        use crate::speedrun::concepts::ConceptState;
+        use crate::speedrun::concepts::CONCEPTS_CONFIG_KEY;
+
+        let mut col = Collection::new();
+        let q = add_question(&mut col, DeckId(1));
+
+        // One attempt appends to the log AND advances the concept's FSRS state.
+        col.speedrun_record_attempt(q, true).unwrap();
+        let card = col.storage.get_card(q).unwrap().unwrap();
+        assert_eq!(parse_attempts(&card.custom_data).len(), 1);
+        let concepts: HashMap<String, ConceptState> = col.get_config_default(CONCEPTS_CONFIG_KEY);
+        assert!(
+            concepts.values().any(|c| c.seen),
+            "concept FSRS should be advanced by the attempt"
+        );
+
+        // A single undo must revert the WHOLE attempt — both halves together.
+        col.undo().unwrap();
+        let card = col.storage.get_card(q).unwrap().unwrap();
+        assert_eq!(
+            parse_attempts(&card.custom_data).len(),
+            0,
+            "undo must remove the logged attempt"
+        );
+        let concepts: HashMap<String, ConceptState> = col.get_config_default(CONCEPTS_CONFIG_KEY);
+        assert!(
+            !concepts.values().any(|c| c.seen),
+            "undo must also revert the concept FSRS advance (atomic op)"
+        );
+
+        // Collection is not corrupted: redo re-applies, and further writes work.
+        col.redo().unwrap();
+        assert_eq!(
+            parse_attempts(&col.storage.get_card(q).unwrap().unwrap().custom_data).len(),
+            1,
+            "redo must re-apply the attempt"
+        );
+        col.speedrun_record_attempt(q, false).unwrap();
+        assert_eq!(
+            parse_attempts(&col.storage.get_card(q).unwrap().unwrap().custom_data).len(),
+            2
+        );
     }
 
     #[test]
