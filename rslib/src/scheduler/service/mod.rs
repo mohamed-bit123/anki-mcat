@@ -106,7 +106,8 @@ impl crate::services::SchedulerService for Collection {
         })
     }
 
-    /// Speedrun (MCAT fork): seed the built-in MCAT flashcard deck (idempotent).
+    /// Speedrun (MCAT fork): seed the built-in MCAT flashcard deck
+    /// (idempotent).
     fn speedrun_seed_builtin(&mut self) -> Result<generic::UInt32> {
         let added = self.speedrun_seed_builtin()?;
         Ok((added as u32).into())

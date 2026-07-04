@@ -15,13 +15,13 @@
 //! Flashcards land in per-topic subdecks under [`MCAT_DECK`] (e.g.
 //! `MCAT::Biochemistry`) and feed the **Memory** score. Questions land under
 //! [`PRACTICE_DECK`] (e.g. `MCAT Practice::Biochemistry`), tagged
-//! [`QUESTION_TAG`], and feed **Performance**/**Readiness**. The engine treats a
-//! card's deck as its topic, so this layout lets
-//! [`crate::speedrun::queue::points_at_stake`] weight high-yield topics and lets
-//! [`crate::speedrun::queue::interleave_order`] mix subjects.
+//! [`QUESTION_TAG`], and feed **Performance**/**Readiness**. The engine treats
+//! a card's deck as its topic, so this layout lets
+//! [`crate::speedrun::queue::points_at_stake`] weight high-yield topics and
+//! lets [`crate::speedrun::queue::interleave_order`] mix subjects.
 //!
-//! Seeding is idempotent per content type (it no-ops if the matching tag already
-//! has cards), so callers can safely wire it to a "Set up MCAT" button.
+//! Seeding is idempotent per content type (it no-ops if the matching tag
+//! already has cards), so callers can safely wire it to a "Set up MCAT" button.
 
 use std::collections::HashMap;
 use std::sync::Arc;

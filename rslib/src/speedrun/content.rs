@@ -316,13 +316,13 @@ impl Collection {
         topic_points: &HashMap<String, f32>,
         deck_names: &mut HashMap<DeckId, String>,
     ) -> Result<f32> {
-        if !deck_names.contains_key(&deck_id) {
+        if let std::collections::hash_map::Entry::Vacant(e) = deck_names.entry(deck_id) {
             let name = self
                 .storage
                 .get_deck(deck_id)?
                 .map(|d| d.human_name().to_lowercase())
                 .unwrap_or_default();
-            deck_names.insert(deck_id, name);
+            e.insert(name);
         }
         let name = &deck_names[&deck_id];
         Ok(topic_points

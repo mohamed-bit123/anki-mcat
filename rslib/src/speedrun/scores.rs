@@ -364,7 +364,8 @@ fn map_pct_to_score(pct: f64, cfg: &ScoreConfig) -> f64 {
     score.clamp(cfg.mcat_min, cfg.mcat_max)
 }
 
-/// Wilson score interval for a binomial proportion. Returns (low, high) in 0..=1.
+/// Wilson score interval for a binomial proportion. Returns (low, high) in
+/// 0..=1.
 fn wilson_interval(p: f64, n: usize, z: f64) -> (f64, f64) {
     if n == 0 {
         return (0.0, 1.0);
@@ -553,10 +554,16 @@ mod test {
             }
         }
         let p = performance_score(&two_of_three, 3, &cfg);
-        assert!(p.value.is_none(), "partial coverage must not unlock a score");
+        assert!(
+            p.value.is_none(),
+            "partial coverage must not unlock a score"
+        );
         let reason = p.reason_withheld.unwrap();
         assert!(reason.contains("every topic"));
-        assert!(reason.contains("2/3"), "reason should report coverage: {reason}");
+        assert!(
+            reason.contains("2/3"),
+            "reason should report coverage: {reason}"
+        );
 
         // Third topic present but only 2 attempts (below depth) -> still withheld.
         let mut third_shallow = two_of_three.clone();

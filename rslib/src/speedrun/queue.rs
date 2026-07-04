@@ -162,9 +162,9 @@ pub fn question_priority(input: &QuestionPriorityInput) -> f32 {
 // *sequence*: the spacing research is clear that mixing topics (interleaving)
 // beats studying one subject in a block, because it forces discrimination and
 // spaces each topic's retrievals. So instead of emitting all of the weakest
-// topic's cards back-to-back, we pull from ALL topics at once, never repeating a
-// topic on consecutive cards while any other topic still has cards, yet always
-// surfacing the highest-priority card available at each step.
+// topic's cards back-to-back, we pull from ALL topics at once, never repeating
+// a topic on consecutive cards while any other topic still has cards, yet
+// always surfacing the highest-priority card available at each step.
 
 /// One card to interleave: its position in the source slice, its topic, and its
 /// points-at-stake priority.
@@ -176,10 +176,10 @@ pub struct InterleaveItem {
 }
 
 /// Returns the source indices in interleaved study order (see module note).
-/// Highest-priority card first; thereafter the highest-priority card whose topic
-/// differs from the one just emitted, falling back to same-topic only when no
-/// other topic has cards left. With a single topic this degenerates to plain
-/// priority-descending order.
+/// Highest-priority card first; thereafter the highest-priority card whose
+/// topic differs from the one just emitted, falling back to same-topic only
+/// when no other topic has cards left. With a single topic this degenerates to
+/// plain priority-descending order.
 pub fn interleave_order(items: &[InterleaveItem]) -> Vec<usize> {
     use std::collections::BTreeMap;
     use std::collections::VecDeque;
