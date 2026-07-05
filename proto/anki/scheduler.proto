@@ -87,6 +87,10 @@ service SchedulerService {
   // the calibration that narrows the Readiness range and unlocks higher
   // confidence: the "prove yourself wrong" honesty loop. Syncs to every client.
   rpc SpeedrunRecordCalibration(SpeedrunRecordCalibrationRequest) returns (generic.Empty);
+  // Speedrun (MCAT fork): set (0 clears) the target exam date as a Unix
+  // timestamp (seconds). Readiness then projects retrievability forward to that
+  // date using FSRS stability (storage strength). Syncs via config.
+  rpc SpeedrunSetExamDate(SpeedrunSetExamDateRequest) returns (generic.Empty);
 }
 
 // Implicitly includes any of the above methods that are not listed in the
@@ -114,6 +118,12 @@ message SpeedrunRecordCalibrationRequest {
   float actual = 2;
 }
 
+// Speedrun (MCAT fork): the target exam date as a Unix timestamp in seconds
+// (0 clears it). Drives forward projection of retrievability to test day.
+message SpeedrunSetExamDateRequest {
+  int64 timestamp = 1;
+}
+
 // Speedrun (MCAT fork): the three deliberately-separate scores. `known` is
 // false when a score is withheld by the give-up rule; `reason` then explains
 // why. Readiness additionally always carries a calibration note.
@@ -125,6 +135,9 @@ message SpeedrunScoresResponse {
     uint32 total_cards = 4;
     float topic_coverage = 5;
     string reason = 6;
+    float mean_stability_days = 7;
+    bool has_projection = 8;
+    float projected_recall = 9;
   }
   message Performance {
     bool known = 1;
@@ -142,6 +155,8 @@ message SpeedrunScoresResponse {
     string confidence = 5;
     string reason = 6;
     string calibration_note = 7;
+    bool has_exam = 8;
+    int32 days_to_exam = 9;
   }
   Memory memory = 1;
   Performance performance = 2;

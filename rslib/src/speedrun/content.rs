@@ -27,6 +27,8 @@ use crate::search::Node;
 use crate::search::SearchNode;
 use crate::search::SortMode;
 use crate::speedrun::queue::card_retrievability;
+use crate::speedrun::queue::card_retrievability_at;
+use crate::speedrun::queue::card_stability_days;
 use crate::speedrun::queue::question_priority;
 use crate::speedrun::queue::smoothed_accuracy;
 use crate::speedrun::queue::QuestionPriorityInput;
@@ -49,6 +51,9 @@ pub const QUESTION_TAG: &str = "mcat-question";
 pub const ATTEMPTS_KEY: &str = "spA";
 /// Config key holding `[[projected, actual], ...]` from full-length tests.
 pub const CALIBRATION_CONFIG_KEY: &str = "speedrunCalibration";
+/// Config key holding the target exam date as a Unix timestamp (seconds); 0 or
+/// absent means no exam date is set.
+pub const EXAM_TIMESTAMP_CONFIG_KEY: &str = "speedrunExamTimestamp";
 /// Cap on retained attempts per question (keeps `custom_data` small).
 pub const MAX_ATTEMPTS_KEPT: usize = 50;
 /// Cap on retained calibration points (keeps the config entry small; it syncs).
@@ -81,6 +86,9 @@ impl From<&SpeedrunScores> for anki_proto::scheduler::SpeedrunScoresResponse {
                 total_cards: s.memory.total_cards as u32,
                 topic_coverage: s.memory.topic_coverage,
                 reason: s.memory.reason_withheld.clone().unwrap_or_default(),
+                mean_stability_days: s.memory.mean_stability_days,
+                has_projection: s.memory.projected_recall.is_some(),
+                projected_recall: s.memory.projected_recall.unwrap_or(0.0),
             }),
             performance: Some(pb::Performance {
                 known: s.performance.value.is_some(),
@@ -98,6 +106,8 @@ impl From<&SpeedrunScores> for anki_proto::scheduler::SpeedrunScoresResponse {
                 confidence: format!("{:?}", s.readiness.confidence).to_lowercase(),
                 reason: s.readiness.reason_withheld.clone().unwrap_or_default(),
                 calibration_note: s.readiness.calibration_note.clone(),
+                has_exam: s.readiness.days_to_exam.is_some(),
+                days_to_exam: s.readiness.days_to_exam.unwrap_or(0),
             }),
         }
     }
@@ -263,10 +273,24 @@ impl Collection {
         let topic_points: HashMap<String, f32> = self.get_config_default(TOPIC_POINTS_CONFIG_KEY);
         let mut deck_names: HashMap<DeckId, String> = HashMap::new();
 
-        let memory = self.gather_memory(&cfg, &timing, &topic_points, &mut deck_names)?;
+        // Exam-date forward projection: seconds until the exam (0 = not set).
+        let exam_ts: i64 = self.get_config_default(EXAM_TIMESTAMP_CONFIG_KEY);
+        let now = TimestampSecs::now().0;
+        let has_exam = exam_ts > 0;
+        let secs_to_exam: u32 = (exam_ts - now).clamp(0, u32::MAX as i64) as u32;
+        let days_to_exam = has_exam.then(|| ((exam_ts - now).max(0) / 86_400) as i32);
+
+        let memory = self.gather_memory(
+            &cfg,
+            &timing,
+            &topic_points,
+            &mut deck_names,
+            secs_to_exam,
+            has_exam,
+        )?;
         let performance = self.gather_performance(&cfg, &timing, &topic_points, &mut deck_names)?;
         let calibration = self.read_calibration();
-        let readiness = readiness_score(&memory, &performance, &calibration, &cfg);
+        let readiness = readiness_score(&memory, &performance, &calibration, &cfg, days_to_exam);
 
         Ok(SpeedrunScores {
             memory,
@@ -275,12 +299,21 @@ impl Collection {
         })
     }
 
+    /// Sets (or clears, with 0) the target exam date as a Unix timestamp. Stored
+    /// in config so it syncs; drives forward projection of retrievability.
+    pub(crate) fn speedrun_set_exam_date(&mut self, timestamp: i64) -> Result<()> {
+        self.set_config(EXAM_TIMESTAMP_CONFIG_KEY, &timestamp.max(0))?;
+        Ok(())
+    }
+
     fn gather_memory(
         &mut self,
         cfg: &ScoreConfig,
         timing: &SchedTimingToday,
         topic_points: &HashMap<String, f32>,
         deck_names: &mut HashMap<DeckId, String>,
+        secs_to_exam: u32,
+        has_exam: bool,
     ) -> Result<MemoryScore> {
         let ids = self.search_cards(
             Node::Not(Box::new(SearchNode::from_tag_name(QUESTION_TAG).into())),
@@ -293,14 +326,22 @@ impl Collection {
                 None => continue,
             };
             let points = self.topic_points_for_deck(card.deck_id, topic_points, deck_names)?;
+            let retrievability = card_retrievability(&card, timing);
+            let projected_retrievability = if has_exam {
+                card_retrievability_at(&card, timing, secs_to_exam)
+            } else {
+                retrievability
+            };
             inputs.push(CardMemoryInput {
-                retrievability: card_retrievability(&card, timing),
+                retrievability,
+                stability_days: card_stability_days(&card),
+                projected_retrievability,
                 topic_points: points,
                 topic_id: card.deck_id.0 as u32,
                 studied: card.reps > 0,
             });
         }
-        Ok(memory_score(&inputs, cfg))
+        Ok(memory_score(&inputs, cfg, has_exam))
     }
 
     fn gather_performance(

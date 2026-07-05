@@ -103,8 +103,15 @@ pub enum Confidence {
 /// Per-card input for the Memory score.
 #[derive(Debug, Clone, Copy)]
 pub struct CardMemoryInput {
-    /// Current probability of recall, 0..=1 (FSRS retrievability).
+    /// Current probability of recall, 0..=1 (FSRS retrievability) — *retrieval
+    /// strength* right now.
     pub retrievability: f32,
+    /// FSRS stability in days — *storage strength* (resistance to forgetting).
+    /// 0 when unknown (no FSRS memory state yet).
+    pub stability_days: f32,
+    /// Retrievability projected forward to the exam date assuming no further
+    /// review, 0..=1. Equals `retrievability` when no exam date is set.
+    pub projected_retrievability: f32,
     /// MCAT points on this card's topic (>= 0).
     pub topic_points: f32,
     /// Topic identifier (for coverage accounting).
@@ -135,12 +142,18 @@ pub struct CalibrationPoint {
 
 #[derive(Debug, Clone)]
 pub struct MemoryScore {
-    /// 0..=100, or None when withheld (give-up rule).
+    /// 0..=100, or None when withheld (give-up rule). This is *retrieval
+    /// strength* now.
     pub value: Option<f32>,
     pub studied_cards: usize,
     pub total_cards: usize,
     /// Fraction of known topics that have at least one studied card, 0..=1.
     pub topic_coverage: f32,
+    /// *Storage strength*: mean FSRS stability (days) over studied cards.
+    pub mean_stability_days: f32,
+    /// Topic-weighted projected recall on the exam date (0..=100) if you stop
+    /// reviewing today; None when no exam date is set.
+    pub projected_recall: Option<f32>,
     pub reason_withheld: Option<String>,
 }
 
@@ -165,10 +178,14 @@ pub struct ReadinessScore {
     pub reason_withheld: Option<String>,
     /// Human-readable calibration status (always present).
     pub calibration_note: String,
+    /// Days until the target exam date, if one is set.
+    pub days_to_exam: Option<i32>,
 }
 
-/// Memory = topic-weighted mean retrievability over *studied* cards.
-pub fn memory_score(cards: &[CardMemoryInput], cfg: &ScoreConfig) -> MemoryScore {
+/// Memory = topic-weighted mean retrievability over *studied* cards (retrieval
+/// strength now), plus storage strength (mean stability) and, when an exam date
+/// is set, topic-weighted projected recall on that date.
+pub fn memory_score(cards: &[CardMemoryInput], cfg: &ScoreConfig, has_exam: bool) -> MemoryScore {
     let total_cards = cards.len();
     let studied: Vec<&CardMemoryInput> = cards.iter().filter(|c| c.studied).collect();
     let studied_cards = studied.len();
@@ -181,12 +198,48 @@ pub fn memory_score(cards: &[CardMemoryInput], cfg: &ScoreConfig) -> MemoryScore
         studied_topics.len() as f32 / all_topics.len() as f32
     };
 
+    // Storage strength: mean FSRS stability (days) over studied cards.
+    let mean_stability_days = if studied.is_empty() {
+        0.0
+    } else {
+        (studied
+            .iter()
+            .map(|c| c.stability_days.max(0.0) as f64)
+            .sum::<f64>()
+            / studied.len() as f64) as f32
+    };
+
+    // Topic-weighted mean of a per-card field over the studied set.
+    let weighted_mean = |f: &dyn Fn(&CardMemoryInput) -> f32| -> f32 {
+        let mut ws = 0.0f64;
+        let mut wv = 0.0f64;
+        for c in &studied {
+            let w = c.topic_points.max(0.0) as f64;
+            let w = if w == 0.0 { 1.0 } else { w };
+            ws += w;
+            wv += w * (f(c).clamp(0.0, 1.0) as f64);
+        }
+        if ws > 0.0 {
+            (wv / ws * 100.0) as f32
+        } else {
+            0.0
+        }
+    };
+
+    let projected_recall = if has_exam && !studied.is_empty() {
+        Some(weighted_mean(&|c| c.projected_retrievability))
+    } else {
+        None
+    };
+
     if studied_cards < cfg.memory_min_cards {
         return MemoryScore {
             value: None,
             studied_cards,
             total_cards,
             topic_coverage,
+            mean_stability_days,
+            projected_recall,
             reason_withheld: Some(format!(
                 "Only {studied_cards} studied card(s); need {} before estimating retention.",
                 cfg.memory_min_cards
@@ -194,26 +247,15 @@ pub fn memory_score(cards: &[CardMemoryInput], cfg: &ScoreConfig) -> MemoryScore
         };
     }
 
-    let mut weight_sum = 0.0f64;
-    let mut weighted = 0.0f64;
-    for c in &studied {
-        let w = c.topic_points.max(0.0) as f64;
-        // Guard against an all-zero-points set: fall back to unweighted.
-        let w = if w == 0.0 { 1.0 } else { w };
-        weight_sum += w;
-        weighted += w * (c.retrievability.clamp(0.0, 1.0) as f64);
-    }
-    let value = if weight_sum > 0.0 {
-        (weighted / weight_sum * 100.0) as f32
-    } else {
-        0.0
-    };
+    let value = weighted_mean(&|c| c.retrievability);
 
     MemoryScore {
         value: Some(value),
         studied_cards,
         total_cards,
         topic_coverage,
+        mean_stability_days,
+        projected_recall,
         reason_withheld: None,
     }
 }
@@ -296,11 +338,17 @@ pub fn performance_score(
 }
 
 /// Readiness = projected MCAT score with a range, gated on applied Performance.
+///
+/// When an exam date is set (`days_to_exam`), the memory ceiling blends recall
+/// *now* with recall *projected to the exam* (from FSRS stability), so fragile,
+/// crammed knowledge (high retrieval / low storage) projects lower and the
+/// range widens by the size of that durability gap.
 pub fn readiness_score(
     memory: &MemoryScore,
     performance: &PerformanceScore,
     calibration: &[CalibrationPoint],
     cfg: &ScoreConfig,
+    days_to_exam: Option<i32>,
 ) -> ReadinessScore {
     let calibration_note = calibration_note(calibration);
 
@@ -319,29 +367,43 @@ pub fn readiness_score(
                         .to_string(),
                 ),
                 calibration_note,
+                days_to_exam,
             };
         }
     };
 
-    // Memory acts as a ceiling factor in [0.8, 1.0]: weak retention caps how much
-    // measured performance we trust to hold on test day. Unknown memory → neutral
-    // 0.9 and lower confidence.
-    let (mem_mult, mem_known) = match memory.value {
-        Some(m) => (0.8 + 0.2 * (m as f64 / 100.0).clamp(0.0, 1.0), true),
-        None => (0.9, false),
+    // Memory acts as a ceiling factor in [0.8, 1.0]. With an exam date we use a
+    // 50/50 blend of recall-now and projected-recall-on-exam-day, so storage
+    // strength (durability) enters the score; without one we use recall now.
+    // `durability_gap` = how much recall is expected to decay by the exam.
+    let (ceiling_frac, durability_gap, mem_known) = match memory.value {
+        Some(m) => {
+            let now = (m as f64 / 100.0).clamp(0.0, 1.0);
+            match memory.projected_recall {
+                Some(p) => {
+                    let hold = (p as f64 / 100.0).clamp(0.0, 1.0);
+                    (0.5 * now + 0.5 * hold, (now - hold).max(0.0), true)
+                }
+                None => (now, 0.0, true),
+            }
+        }
+        None => (0.9, 0.0, false),
     };
+    let mem_mult = 0.8 + 0.2 * ceiling_frac;
 
     let effective_pct = (perf_pct * mem_mult).clamp(0.0, 1.0);
     let projected = map_pct_to_score(effective_pct, cfg);
 
     // Range: Wilson interval on the accuracy (sample size = raw attempts),
     // scaled by the same memory multiplier, mapped to score, then inflated by
-    // calibration error (or a default when uncalibrated).
+    // calibration error (or a default when uncalibrated) and by the durability
+    // gap (fragile knowledge → less certain it holds to test day).
     let (lo_pct, hi_pct) = wilson_interval(perf_pct, performance.attempts, cfg.interval_z);
     let mut low = map_pct_to_score((lo_pct * mem_mult).clamp(0.0, 1.0), cfg);
     let mut high = map_pct_to_score((hi_pct * mem_mult).clamp(0.0, 1.0), cfg);
 
-    let extra = calibration_uncertainty(calibration, cfg);
+    let extra = calibration_uncertainty(calibration, cfg)
+        + durability_gap * (cfg.map_high_score - cfg.map_low_score);
     low = (low - extra).max(cfg.mcat_min);
     high = (high + extra).min(cfg.mcat_max);
 
@@ -354,6 +416,7 @@ pub fn readiness_score(
         confidence,
         reason_withheld: None,
         calibration_note,
+        days_to_exam,
     }
 }
 
@@ -437,9 +500,23 @@ mod test {
     fn card(r: f32, points: f32, topic: u32, studied: bool) -> CardMemoryInput {
         CardMemoryInput {
             retrievability: r,
+            stability_days: 30.0,
+            projected_retrievability: r,
             topic_points: points,
             topic_id: topic,
             studied,
+        }
+    }
+
+    /// Like `card`, but with an explicit projected (exam-day) retrievability.
+    fn card_proj(r: f32, proj: f32, points: f32, topic: u32) -> CardMemoryInput {
+        CardMemoryInput {
+            retrievability: r,
+            stability_days: 30.0,
+            projected_retrievability: proj,
+            topic_points: points,
+            topic_id: topic,
+            studied: true,
         }
     }
 
@@ -463,7 +540,7 @@ mod test {
     fn memory_withheld_below_minimum() {
         let cfg = ScoreConfig::default();
         let cards: Vec<_> = (0..5).map(|i| card(0.9, 1.0, i, true)).collect();
-        let m = memory_score(&cards, &cfg);
+        let m = memory_score(&cards, &cfg, false);
         assert!(m.value.is_none());
         assert!(m.reason_withheld.is_some());
         assert_eq!(m.studied_cards, 5);
@@ -480,7 +557,7 @@ mod test {
         for i in 15..30 {
             cards.push(card(0.5, 1.0, i, true)); // low yield, weak
         }
-        let m = memory_score(&cards, &cfg);
+        let m = memory_score(&cards, &cfg, false);
         let v = m.value.unwrap();
         // Weighted mean = (15*3*0.9 + 15*1*0.5)/(15*3+15*1) = (40.5+7.5)/60 = 0.8.
         assert!((v - 80.0).abs() < 0.5, "got {v}");
@@ -499,7 +576,7 @@ mod test {
             card(0.9, 1.0, 2, false),
             card(0.9, 1.0, 3, false),
         ];
-        let m = memory_score(&cards, &cfg);
+        let m = memory_score(&cards, &cfg, false);
         assert!((m.topic_coverage - 1.0 / 3.0).abs() < 1e-6);
     }
 
@@ -586,10 +663,10 @@ mod test {
     fn readiness_refused_without_performance() {
         let cfg = ScoreConfig::default();
         let cards: Vec<_> = (0..100).map(|i| card(0.95, 1.0, i % 10, true)).collect();
-        let mem = memory_score(&cards, &cfg);
+        let mem = memory_score(&cards, &cfg, false);
         assert!(mem.value.is_some(), "memory should be known");
         let perf = performance_score(&[], 0, &cfg);
-        let r = readiness_score(&mem, &perf, &[], &cfg);
+        let r = readiness_score(&mem, &perf, &[], &cfg, None);
         // Even with excellent memory, readiness must be refused.
         assert!(r.projected.is_none());
         assert!(r.reason_withheld.is_some());
@@ -603,12 +680,13 @@ mod test {
                 .map(|i| card(0.9, 1.0, i % 10, true))
                 .collect::<Vec<_>>(),
             &cfg,
+            false,
         );
 
         let small = performance_score(&many_attempts(20, 10, 5), 5, &cfg);
         let large = performance_score(&many_attempts(200, 100, 5), 5, &cfg);
-        let r_small = readiness_score(&mem, &small, &[], &cfg);
-        let r_large = readiness_score(&mem, &large, &[], &cfg);
+        let r_small = readiness_score(&mem, &small, &[], &cfg, None);
+        let r_large = readiness_score(&mem, &large, &[], &cfg, None);
 
         let width = |r: &ReadinessScore| r.high.unwrap() - r.low.unwrap();
         assert!(
@@ -628,17 +706,19 @@ mod test {
                 .map(|i| card(0.98, 1.0, i % 10, true))
                 .collect::<Vec<_>>(),
             &cfg,
+            false,
         );
         let weak_mem = memory_score(
             &(0..50)
                 .map(|i| card(0.40, 1.0, i % 10, true))
                 .collect::<Vec<_>>(),
             &cfg,
+            false,
         );
-        let r_strong = readiness_score(&strong_mem, &perf, &[], &cfg)
+        let r_strong = readiness_score(&strong_mem, &perf, &[], &cfg, None)
             .projected
             .unwrap();
-        let r_weak = readiness_score(&weak_mem, &perf, &[], &cfg)
+        let r_weak = readiness_score(&weak_mem, &perf, &[], &cfg, None)
             .projected
             .unwrap();
         assert!(
@@ -655,10 +735,11 @@ mod test {
                 .map(|i| card(0.9, 1.0, i % 10, true))
                 .collect::<Vec<_>>(),
             &cfg,
+            false,
         );
         let perf = performance_score(&many_attempts(60, 42, 6), 6, &cfg);
 
-        let uncal = readiness_score(&mem, &perf, &[], &cfg);
+        let uncal = readiness_score(&mem, &perf, &[], &cfg, None);
         assert!(uncal.calibration_note.contains("Not yet calibrated"));
         assert_ne!(uncal.confidence, Confidence::High);
 
@@ -672,7 +753,7 @@ mod test {
                 actual: 509.0,
             },
         ];
-        let r = readiness_score(&mem, &perf, &cal, &cfg);
+        let r = readiness_score(&mem, &perf, &cal, &cfg, None);
         assert!(r.calibration_note.contains("off by"));
         assert_eq!(r.confidence, Confidence::High);
     }
@@ -685,15 +766,74 @@ mod test {
                 .map(|i| card(1.0, 1.0, i % 10, true))
                 .collect::<Vec<_>>(),
             &cfg,
+            false,
         );
         let perfect = performance_score(&many_attempts(100, 100, 6), 6, &cfg);
         let zero = performance_score(&many_attempts(100, 0, 6), 6, &cfg);
-        let r_hi = readiness_score(&mem, &perfect, &[], &cfg);
-        let r_lo = readiness_score(&mem, &zero, &[], &cfg);
+        let r_hi = readiness_score(&mem, &perfect, &[], &cfg, None);
+        let r_lo = readiness_score(&mem, &zero, &[], &cfg, None);
         for r in [&r_hi, &r_lo] {
             let p = r.projected.unwrap();
             assert!((472.0..=528.0).contains(&p), "out of scale: {p}");
             assert!(r.low.unwrap() >= 472.0 && r.high.unwrap() <= 528.0);
         }
+    }
+
+    #[test]
+    fn memory_surfaces_storage_strength_and_projection() {
+        let cfg = ScoreConfig::default();
+        // Same current recall (0.9) but different projected exam-day recall.
+        let cards: Vec<_> = (0..40).map(|i| card_proj(0.9, 0.5, 1.0, i % 8)).collect();
+        let with_exam = memory_score(&cards, &cfg, true);
+        let no_exam = memory_score(&cards, &cfg, false);
+        assert!(with_exam.mean_stability_days > 0.0);
+        assert!(
+            (with_exam.value.unwrap() - 90.0).abs() < 1.0,
+            "recall-now is unchanged"
+        );
+        assert!((with_exam.projected_recall.unwrap() - 50.0).abs() < 1.0);
+        assert!(
+            no_exam.projected_recall.is_none(),
+            "no projection without an exam date"
+        );
+    }
+
+    #[test]
+    fn exam_projection_penalizes_fragile_knowledge() {
+        let cfg = ScoreConfig::default();
+        // Both recall 0.9 now; durable holds to the exam, fragile decays.
+        let durable: Vec<_> = (0..40).map(|i| card_proj(0.9, 0.88, 1.0, i % 8)).collect();
+        let fragile: Vec<_> = (0..40).map(|i| card_proj(0.9, 0.30, 1.0, i % 8)).collect();
+        let mem_durable = memory_score(&durable, &cfg, true);
+        let mem_fragile = memory_score(&fragile, &cfg, true);
+        assert!((mem_durable.value.unwrap() - mem_fragile.value.unwrap()).abs() < 1.0);
+
+        let perf = performance_score(&many_attempts(60, 42, 6), 6, &cfg);
+        let r_durable = readiness_score(&mem_durable, &perf, &[], &cfg, Some(30));
+        let r_fragile = readiness_score(&mem_fragile, &perf, &[], &cfg, Some(30));
+        assert!(
+            r_durable.projected.unwrap() > r_fragile.projected.unwrap(),
+            "durable {} should project higher than fragile {}",
+            r_durable.projected.unwrap(),
+            r_fragile.projected.unwrap()
+        );
+        let width = |r: &ReadinessScore| r.high.unwrap() - r.low.unwrap();
+        assert!(
+            width(&r_fragile) > width(&r_durable),
+            "fragile knowledge should widen the range"
+        );
+        assert_eq!(r_durable.days_to_exam, Some(30));
+    }
+
+    #[test]
+    fn no_exam_ignores_projection_in_readiness() {
+        let cfg = ScoreConfig::default();
+        // Projected recall is low, but with no exam it must not drag readiness.
+        let cards: Vec<_> = (0..40).map(|i| card_proj(0.9, 0.2, 1.0, i % 8)).collect();
+        let mem = memory_score(&cards, &cfg, false);
+        let perf = performance_score(&many_attempts(60, 42, 6), 6, &cfg);
+        let r = readiness_score(&mem, &perf, &[], &cfg, None);
+        assert!(r.days_to_exam.is_none());
+        assert!(r.projected.is_some());
     }
 }
