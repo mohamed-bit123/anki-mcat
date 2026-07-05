@@ -92,6 +92,9 @@ def _dialog_qss(t: dict[str, str]) -> str:
     a = _ACCENTS["memory"]
     return f"""
     QDialog {{ background: {t['page']}; }}
+    QScrollArea {{ border: none; background: transparent; }}
+    #ScrollBody {{ background: {t['page']}; }}
+    #ControlsBar {{ background: {t['page']}; border-top: 1px solid {t['border']}; }}
     QLabel {{ color: {t['text']}; }}
     #Header {{ font-size: 20px; font-weight: 700; }}
     #Subheader {{ font-size: 12px; color: {t['muted']}; }}
@@ -360,7 +363,22 @@ class SpeedrunDialog(QDialog):
         self.setStyleSheet(_dialog_qss(self._t))
         t = self._t
 
-        layout = QVBoxLayout(self)
+        # The panel is tall, so the content scrolls while the action buttons
+        # stay pinned to the bottom (always reachable).
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        content = QWidget()
+        content.setObjectName("ScrollBody")
+        outer.addWidget(scroll, 1)
+        scroll.setWidget(content)
+
+        layout = QVBoxLayout(content)
         layout.setContentsMargins(22, 20, 22, 18)
         layout.setSpacing(14)
 
@@ -485,7 +503,14 @@ class SpeedrunDialog(QDialog):
         layout.addWidget(practice)
         layout.addStretch(1)
 
-        controls = QHBoxLayout()
+        outer.addWidget(self._build_controls())
+
+    def _build_controls(self) -> QFrame:
+        """The pinned bottom action bar (kept out of the scroll area)."""
+        controls_bar = QFrame()
+        controls_bar.setObjectName("ControlsBar")
+        controls = QHBoxLayout(controls_bar)
+        controls.setContentsMargins(22, 10, 22, 14)
         controls.setSpacing(8)
         self.start_button = QPushButton("Start practice")
         self.start_button.setObjectName("Primary")
@@ -543,7 +568,7 @@ class SpeedrunDialog(QDialog):
         close_button = QPushButton("Close")
         close_button.clicked.connect(self.accept)
         controls.addWidget(close_button)
-        layout.addLayout(controls)
+        return controls_bar
 
     # Scores ------------------------------------------------------------------
 
