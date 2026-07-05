@@ -56,11 +56,12 @@ section "6/8 held-out model evals (memory / performance / paraphrase / leakage)"
 "$PYENV" verify/paraphrase.py --out "$ART/paraphrase.md" 2>&1 | tail -n 2
 "$PYENV" verify/leakage.py --out "$ART/leakage.md" 2>&1 | tail -n 2
 
-section "7/8 study-feature ablation (§8) + outline coverage (§7c) + AI gold set (§7f)"
+section "7/8 study-feature ablation (§8) + outline coverage (§7c) + AI gold set (§7f) + prompt injection (§10)"
 "$PYENV" verify/ablation.py --out "$ART/ablation.md" 2>&1 | tail -n 2
 "$PYENV" verify/coverage_map.py --out "$ART/coverage.md" 2>&1 | tail -n 2
-# Baselines run offline; add --use-ai with OPENAI_API_KEY for the AI row.
+# Baselines/guards run offline; add --use-ai with OPENAI_API_KEY for the live rows.
 "$PYENV" verify/goldset.py ${OPENAI_API_KEY:+--use-ai} --out "$ART/goldset.md" 2>&1 | tail -n 2
+"$PYENV" verify/prompt_injection.py ${OPENAI_API_KEY:+--use-ai} --out "$ART/prompt-injection.md" 2>&1 | tail -n 2
 
 section "8/8 latency benchmark (p50/p95/worst vs targets)"
 "$PYENV" verify/bench.py --iters 300 --out "$ART/latency.md" 2>&1 | tail -n 14

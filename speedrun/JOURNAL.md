@@ -902,3 +902,28 @@ three separated scores with ranges + give-up rules in `scores.rs`; AI-off still 
 (scores are pure Rust, independent of AI). Remaining are genuinely yours: signed/notarized
 desktop installer + clean-machine install recordings (both platforms), the 3–5 min demo
 video, and formatting the Brainlift into the repo.
+
+## Reviewer feedback follow-ups (prompt injection + PR workflow)
+
+Second-round feedback asked for three things before final submission: a prompt-injection
+test, the recorded phone→desktop sync demo, and a feature-branch/PR workflow instead of
+committing to `main`. Addressed the first and third here (on branch
+`feature/prompt-injection-test`, opened as a PR rather than pushed to `main`):
+
+- **Prompt-injection hardening** in `qt/aqt/speedrun_ai.py`. Source facts come from
+  user-editable flashcards, so they are untrusted model input. Added four defense layers:
+  (1) `_sanitize_fact` strips zero-width/bidi/control chars and `<<<`/`>>>` delimiter-breakout
+  attempts + caps length; (2) `_gen_prompt` wraps facts in explicit `SOURCE_FACTS` markers and
+  the system prompt frames them as untrusted data, never instructions; (3) an output guard
+  (`looks_injected` in `_validate`) drops any generated item that echoes an injection marker or
+  leaks our system prompt; (4) the pre-existing independent verifier answers blind, so a
+  forced/wrong answer key fails confirmation.
+- **`verify/prompt_injection.py`** exercises the _real_ module functions across the vectors in
+  brief §10 (hidden text, key override, prompt exfiltration, delimiter breakout). Offline+
+  deterministic by default (mocks a fully compromised generator); `--use-ai` adds a live pass.
+  Result → `artifacts/prompt-injection.md`: all attacks neutralized, benign control survives.
+  Wired into `verify/run-all.sh` + README results table; audit/TESTING updated.
+- **Workflow**: this work lives on a feature branch and ships as a PR; no more direct-to-`main`.
+
+Still yours: the recorded phone→desktop sync demonstration (mechanism already proven by
+`speedrun/sync_check.py`; the ask is a screen recording).

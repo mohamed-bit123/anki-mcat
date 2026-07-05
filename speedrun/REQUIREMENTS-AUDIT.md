@@ -33,6 +33,7 @@ Exam: **MCAT** (472–528, four 118–132 sections). AI off = fully functional.
 - [x] 7f AI gold set (50) + accuracy/wrong-rate + cutoff + baseline `verify/goldset.py` → `artifacts/goldset.md`.
 - [x] 7g Crash 20× zero corruption `verify/crash_test.py` → `artifacts/crash.md` (20/20 integrity ok).
 - [x] 7h Benchmark on **50k** cards `verify/bench.py --cards 50000` → `artifacts/latency-50k.md` (all p95 under target; ~82 MB).
+- [x] §10 prompt-injection defense (hidden text / answer-key override / system-prompt leak) hardened in `qt/aqt/speedrun_ai.py` + `verify/prompt_injection.py` → `artifacts/prompt-injection.md` (all vectors neutralized; benign item survives).
 
 ## Section 9 (models) & 10 (speed)
 

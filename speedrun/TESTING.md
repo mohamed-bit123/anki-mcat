@@ -102,6 +102,17 @@ key (stored locally only, or set `OPENAI_API_KEY`), and generate. New questions 
 > **Security:** never commit a key. The code reads it from `OPENAI_API_KEY` or the local Anki
 > profile only. If a key was ever shared in plaintext, rotate it.
 
+3. **Prompt-injection test (no key needed)** — proves a hostile deck (hidden/zero-width text,
+   answer-key override, system-prompt exfiltration) cannot steer the generator:
+
+```bash
+out/pyenv/bin/python verify/prompt_injection.py --out verify/artifacts/prompt-injection.md
+```
+
+Expect **PASS**: injected/leaking items are dropped, a forced/wrong key fails the independent
+verifier, and a benign control question still survives. Add `--use-ai` with `OPENAI_API_KEY`
+for an additional live-model pass.
+
 ### Automated tests
 
 ```bash
