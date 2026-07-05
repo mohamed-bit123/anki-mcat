@@ -51,6 +51,8 @@ pub const ATTEMPTS_KEY: &str = "spA";
 pub const CALIBRATION_CONFIG_KEY: &str = "speedrunCalibration";
 /// Cap on retained attempts per question (keeps `custom_data` small).
 pub const MAX_ATTEMPTS_KEPT: usize = 50;
+/// Cap on retained calibration points (keeps the config entry small; it syncs).
+pub const MAX_CALIBRATION_KEPT: usize = 50;
 
 /// The three scores plus the config they were computed with.
 pub struct SpeedrunScores {
@@ -144,6 +146,31 @@ impl Collection {
 
         // Advance the concept's FSRS memory state (concept-level spacing).
         self.speedrun_update_concept(deck_id, correct, today)?;
+        Ok(())
+    }
+
+    /// Records one calibration data point: a past Readiness projection vs. the
+    /// student's actual full-length practice-test score. Appended to the
+    /// `speedrunCalibration` config list, which the Readiness model uses to
+    /// narrow its range (past-prediction RMSE) and, once present, to unlock
+    /// higher confidence — the "prove yourself wrong" honesty loop. Both values
+    /// are clamped to the MCAT scale; the list is capped and, being config,
+    /// syncs to every device.
+    pub(crate) fn speedrun_record_calibration(
+        &mut self,
+        projected: f32,
+        actual: f32,
+    ) -> Result<()> {
+        let cfg = ScoreConfig::default();
+        let (lo, hi) = (cfg.mcat_min as f32, cfg.mcat_max as f32);
+        let clamp = |v: f32| v.clamp(lo, hi);
+        let mut points: Vec<[f32; 2]> = self.get_config_default(CALIBRATION_CONFIG_KEY);
+        points.push([clamp(projected), clamp(actual)]);
+        if points.len() > MAX_CALIBRATION_KEPT {
+            let overflow = points.len() - MAX_CALIBRATION_KEPT;
+            points.drain(0..overflow);
+        }
+        self.set_config(CALIBRATION_CONFIG_KEY, &points)?;
         Ok(())
     }
 
@@ -465,6 +492,51 @@ mod test {
         let pos = |c: CardId| order.iter().position(|&x| x == c).unwrap();
         assert!(pos(weak_missed) < pos(strong_known));
         assert!(pos(weak_unseen) < pos(strong_known));
+    }
+
+    #[test]
+    fn calibration_point_is_recorded_and_clamped() {
+        let mut col = Collection::new();
+        assert!(col.read_calibration().is_empty());
+        col.speedrun_record_calibration(508.0, 511.0).unwrap();
+        // Out-of-scale values are clamped to 472..=528.
+        col.speedrun_record_calibration(999.0, 100.0).unwrap();
+        let points = col.read_calibration();
+        assert_eq!(points.len(), 2);
+        assert_eq!(points[0].projected, 508.0);
+        assert_eq!(points[1].projected, 528.0);
+        assert_eq!(points[1].actual, 472.0);
+    }
+
+    #[test]
+    fn calibration_updates_readiness_note() {
+        let mut col = Collection::new();
+        for _ in 0..25 {
+            add_flashcard(&mut col, DeckId(1), 3);
+        }
+        for name in ["T1", "T2", "T3"] {
+            let did = col.get_or_create_normal_deck(name).unwrap().id;
+            for _ in 0..4 {
+                let q = add_question(&mut col, did);
+                col.speedrun_record_attempt(q, true).unwrap();
+            }
+        }
+        let before = col.speedrun_compute_scores().unwrap();
+        assert!(before.readiness.projected.is_some());
+        assert!(before
+            .readiness
+            .calibration_note
+            .contains("Not yet calibrated"));
+
+        let projected = before.readiness.projected.unwrap();
+        col.speedrun_record_calibration(projected, projected + 4.0)
+            .unwrap();
+        let after = col.speedrun_compute_scores().unwrap();
+        assert!(
+            after.readiness.calibration_note.contains("off by"),
+            "note should report calibration error: {}",
+            after.readiness.calibration_note
+        );
     }
 
     #[test]
