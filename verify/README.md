@@ -129,3 +129,13 @@ PYTHONPATH="pylib:out/pylib" out/pyenv/bin/python speedrun/sync_check.py
 Round-trips a seeded, practiced collection through Anki's own sync server and
 asserts per-topic strength, attempt logs, topic points, and all three scores are
 identical on the second device. Captured: [`artifacts/sync.txt`](artifacts/sync.txt).
+
+For the **live phone → desktop recording** (the required demo beat), use the
+turnkey harness, which stands up a self-hosted sync server both apps can reach
+(no AnkiWeb account needed):
+
+```bash
+verify/sync_demo.sh --record   # start server; optionally screen-record the emulator
+```
+
+Narration checklist and the offline/conflict beats: [`SYNC-DEMO.md`](SYNC-DEMO.md).
