@@ -19,6 +19,7 @@ from anki.cards import CardId
 from anki.notes import Note
 from aqt import speedrun_ai as ai
 from aqt.qt import *
+from aqt.theme import theme_manager
 from aqt.utils import (
     disable_help_button,
     getText,
@@ -49,13 +50,291 @@ class _Question:
         self.explanation = note["Explanation"] if "Explanation" in note else ""
 
 
+# --- Visual design system -----------------------------------------------------
+# Each score has its own accent so the three numbers read as three separate
+# things (never one blended number). Confidence gets its own semantic colors.
+_ACCENTS = {
+    "memory": "#3b82f6",  # blue
+    "performance": "#14b8a6",  # teal
+    "readiness": "#8b5cf6",  # violet
+}
+_CONF = {"low": "#f59e0b", "medium": "#3b82f6", "high": "#10b981"}
+
+
+def _hex_rgba(hex_color: str, alpha: float) -> str:
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+def _theme() -> dict[str, str]:
+    """A small light/dark palette so the panel looks intentional in both themes."""
+    if getattr(theme_manager, "night_mode", False):
+        return {
+            "page": "#1e2023",
+            "card": "#282b30",
+            "border": "#3a3e44",
+            "text": "#e8eaed",
+            "muted": "#9aa0a6",
+            "track": "#3a3e44",
+        }
+    return {
+        "page": "#f4f5f7",
+        "card": "#ffffff",
+        "border": "#e4e7eb",
+        "text": "#1f2328",
+        "muted": "#6b7280",
+        "track": "#e7eaee",
+    }
+
+
+def _dialog_qss(t: dict[str, str]) -> str:
+    a = _ACCENTS["memory"]
+    return f"""
+    QDialog {{ background: {t['page']}; }}
+    QLabel {{ color: {t['text']}; }}
+    #Header {{ font-size: 20px; font-weight: 700; }}
+    #Subheader {{ font-size: 12px; color: {t['muted']}; }}
+    #SectionLabel {{ color: {t['muted']}; font-size: 11px; font-weight: 700; }}
+    #Stem {{ font-size: 15px; }}
+    QFrame#Card {{ background: {t['card']}; border: 1px solid {t['border']};
+                   border-radius: 14px; }}
+    QComboBox {{ background: {t['card']}; color: {t['text']};
+                 border: 1px solid {t['border']}; border-radius: 8px;
+                 padding: 5px 10px; min-height: 20px; }}
+    QComboBox::drop-down {{ border: none; width: 20px; }}
+    QComboBox QAbstractItemView {{ background: {t['card']}; color: {t['text']};
+                 border: 1px solid {t['border']};
+                 selection-background-color: {_hex_rgba(a, 0.18)};
+                 selection-color: {t['text']}; outline: none; }}
+    QPushButton {{ background: {t['card']}; color: {t['text']};
+                   border: 1px solid {t['border']}; border-radius: 9px;
+                   padding: 8px 14px; }}
+    QPushButton:hover:enabled {{ border-color: {a}; color: {a}; }}
+    QPushButton:disabled {{ color: {t['muted']}; }}
+    QPushButton#Primary {{ background: {a}; color: #ffffff; border: none;
+                           font-weight: 600; }}
+    QPushButton#Primary:hover:enabled {{ background: #2f6ae0; color: #ffffff; }}
+    QPushButton#Primary:disabled {{ background: {t['track']}; color: {t['muted']}; }}
+    QPushButton#Option {{ text-align: left; padding: 11px 14px; border-radius: 10px; }}
+    QPushButton#Option:hover:enabled {{ border-color: {a};
+                   background: {_hex_rgba(a, 0.06)}; color: {t['text']}; }}
+    QPushButton#Ghost {{ background: transparent; border: 1px solid {t['border']};
+                         color: {t['muted']}; }}
+    QPushButton#Ghost:hover:enabled {{ color: {a}; border-color: {a}; }}
+    """
+
+
+class _Bar(QWidget):
+    """A slim rounded 0–100 progress bar (Memory / Performance)."""
+
+    def __init__(self, accent: str, track: str) -> None:
+        super().__init__()
+        self._accent = QColor(accent)
+        self._track = QColor(track)
+        self._value: float | None = None
+        self.setFixedHeight(8)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+    def set_value(self, value: float | None) -> None:
+        self._value = value
+        self.update()
+
+    def paintEvent(self, _event: object) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = QRectF(0, 0, self.width(), self.height())
+        radius = rect.height() / 2
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(self._track)
+        p.drawRoundedRect(rect, radius, radius)
+        if self._value is not None:
+            frac = max(0.0, min(1.0, self._value / 100.0))
+            width = max(rect.height(), rect.width() * frac)
+            p.setBrush(self._accent)
+            p.drawRoundedRect(QRectF(0, 0, width, rect.height()), radius, radius)
+        p.end()
+
+
+class _RangeBar(QWidget):
+    """The Readiness centerpiece: the 472–528 scale with the likely band and a
+    marker at the projected score, so uncertainty is shown, not hidden."""
+
+    LO, HI = 472.0, 528.0
+
+    def __init__(self, accent: str, track: str, text: str, muted: str) -> None:
+        super().__init__()
+        self._accent = QColor(accent)
+        self._track = QColor(track)
+        self._text = QColor(text)
+        self._muted = QColor(muted)
+        self._proj: float | None = None
+        self._low: float | None = None
+        self._high: float | None = None
+        self.setMinimumHeight(44)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+    def set_range(
+        self, proj: float | None, low: float | None, high: float | None
+    ) -> None:
+        self._proj, self._low, self._high = proj, low, high
+        self.update()
+
+    def _x(self, val: float, x0: float, w: float) -> float:
+        frac = max(0.0, min(1.0, (val - self.LO) / (self.HI - self.LO)))
+        return x0 + frac * w
+
+    def paintEvent(self, _event: object) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        margin = 2.0
+        x0 = margin
+        w = self.width() - 2 * margin
+        track_h = 8.0
+        track_y = 20.0
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(self._track)
+        p.drawRoundedRect(QRectF(x0, track_y, w, track_h), track_h / 2, track_h / 2)
+
+        if self._proj is not None and self._low is not None and self._high is not None:
+            lx = self._x(self._low, x0, w)
+            hx = self._x(self._high, x0, w)
+            band = QColor(self._accent)
+            band.setAlpha(95)
+            p.setBrush(band)
+            p.drawRoundedRect(
+                QRectF(lx, track_y, max(hx - lx, 2.0), track_h),
+                track_h / 2,
+                track_h / 2,
+            )
+            px = self._x(self._proj, x0, w)
+            p.setBrush(self._accent)
+            p.setPen(QPen(QColor("#ffffff"), 2))
+            p.drawEllipse(QPointF(px, track_y + track_h / 2), 6.0, 6.0)
+            font = self.font()
+            font.setBold(True)
+            p.setFont(font)
+            p.setPen(self._accent)
+            p.drawText(
+                QRectF(px - 32, 0, 64, 16),
+                int(Qt.AlignmentFlag.AlignCenter),
+                f"{self._proj:.0f}",
+            )
+
+        font = self.font()
+        font.setBold(False)
+        p.setFont(font)
+        p.setPen(self._muted)
+        p.drawText(
+            QRectF(x0, track_y + track_h + 2, 40, 14),
+            int(Qt.AlignmentFlag.AlignLeft),
+            "472",
+        )
+        p.drawText(
+            QRectF(x0 + w - 40, track_y + track_h + 2, 40, 14),
+            int(Qt.AlignmentFlag.AlignRight),
+            "528",
+        )
+        p.end()
+
+
+class _ScoreCard(QFrame):
+    """One of the three score cards: accent title, big value, a bar/range, a
+    caption, and a state pill (confidence, or a give-up notice)."""
+
+    def __init__(self, title: str, accent: str, t: dict[str, str], kind: str) -> None:
+        super().__init__()
+        self.setObjectName("Card")
+        self._accent = accent
+        self._t = t
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 14, 16, 14)
+        lay.setSpacing(7)
+
+        title_label = QLabel(title.upper())
+        title_label.setStyleSheet(
+            f"color:{accent}; font-size:11px; font-weight:700; letter-spacing:1px;"
+        )
+        lay.addWidget(title_label)
+
+        self._value = QLabel("—")
+        self._value.setTextFormat(Qt.TextFormat.RichText)
+        self._value.setStyleSheet(f"color:{t['text']}; font-size:30px; font-weight:700;")
+        lay.addWidget(self._value)
+
+        if kind == "pct":
+            self._bar: QWidget = _Bar(accent, t["track"])
+        else:
+            self._bar = _RangeBar(accent, t["track"], t["text"], t["muted"])
+        lay.addWidget(self._bar)
+
+        self._caption = QLabel("")
+        self._caption.setWordWrap(True)
+        self._caption.setMinimumHeight(32)
+        self._caption.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        )
+        self._caption.setStyleSheet(f"color:{t['muted']}; font-size:11px;")
+        lay.addWidget(self._caption)
+
+        pill_row = QHBoxLayout()
+        self._pill = QLabel("")
+        self._pill.setVisible(False)
+        self._pill.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        pill_row.addWidget(self._pill)
+        pill_row.addStretch(1)
+        lay.addLayout(pill_row)
+        lay.addStretch(1)
+
+    def _unit(self, unit: str) -> str:
+        return f"<span style='font-size:13px; color:{self._t['muted']}'> {unit}</span>"
+
+    def _set_pill(self, text: str | None, color: str | None) -> None:
+        if not text or color is None:
+            self._pill.setVisible(False)
+            return
+        self._pill.setText(text)
+        self._pill.setStyleSheet(
+            f"background:{_hex_rgba(color, 0.16)}; color:{color}; border-radius:9px;"
+            " padding:3px 10px; font-size:10px; font-weight:700;"
+        )
+        self._pill.setVisible(True)
+
+    def set_pct(self, known: bool, value: float, caption: str, reason: str) -> None:
+        if known:
+            self._value.setText(f"{value:.0f}{self._unit('/ 100')}")
+            self._bar.set_value(value)  # type: ignore[attr-defined]
+            self._caption.setText(caption)
+            self._set_pill(None, None)
+        else:
+            self._value.setText("—")
+            self._bar.set_value(None)  # type: ignore[attr-defined]
+            self._caption.setText(reason)
+            self._set_pill("Needs more data", self._t["muted"])
+
+    def set_range(self, rdy: object) -> None:
+        if rdy.known:  # type: ignore[attr-defined]
+            self._value.setText(f"{rdy.projected:.0f}{self._unit('/ 528')}")  # type: ignore[attr-defined]
+            self._bar.set_range(rdy.projected, rdy.low, rdy.high)  # type: ignore[attr-defined]
+            self._caption.setText(
+                f"Likely {rdy.low:.0f}–{rdy.high:.0f} · {rdy.calibration_note}"  # type: ignore[attr-defined]
+            )
+            conf = (rdy.confidence or "low").lower()  # type: ignore[attr-defined]
+            self._set_pill(f"{conf.title()} confidence", _CONF.get(conf, self._t["muted"]))
+        else:
+            self._value.setText("—")
+            self._bar.set_range(None, None, None)  # type: ignore[attr-defined]
+            self._caption.setText(rdy.reason)  # type: ignore[attr-defined]
+            self._set_pill("Not enough data", self._t["muted"])
+
+
 class SpeedrunDialog(QDialog):
     def __init__(self, mw: AnkiQt) -> None:
         super().__init__(mw)
         self.mw = mw
         self.setWindowTitle("MCAT Speedrun")
         disable_help_button(self)
-        self.resize(640, 720)
+        self.resize(760, 800)
 
         # Open-ended, one-question-at-a-time practice driven by concept-level
         # FSRS scheduling in the engine (speedrun_next_question).
@@ -77,25 +356,45 @@ class SpeedrunDialog(QDialog):
     # UI construction ---------------------------------------------------------
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        self._t = _theme()
+        self.setStyleSheet(_dialog_qss(self._t))
+        t = self._t
 
-        header = QLabel("<h2>MCAT Speedrun</h2>")
-        layout.addWidget(header)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(22, 20, 22, 18)
+        layout.setSpacing(14)
+
+        # Header.
+        header = QLabel("MCAT Speedrun")
+        header.setObjectName("Header")
+        subheader = QLabel("Three scores, measured separately and honestly.")
+        subheader.setObjectName("Subheader")
+        head_box = QVBoxLayout()
+        head_box.setSpacing(2)
+        head_box.addWidget(header)
+        head_box.addWidget(subheader)
+        layout.addLayout(head_box)
 
         # Three score cards.
         scores_row = QHBoxLayout()
-        self.memory_label = self._score_card(scores_row, "Memory")
-        self.performance_label = self._score_card(scores_row, "Performance")
-        self.readiness_label = self._score_card(scores_row, "Readiness")
+        scores_row.setSpacing(12)
+        self.memory_card = _ScoreCard("Memory", _ACCENTS["memory"], t, "pct")
+        self.performance_card = _ScoreCard(
+            "Performance", _ACCENTS["performance"], t, "pct"
+        )
+        self.readiness_card = _ScoreCard("Readiness", _ACCENTS["readiness"], t, "range")
+        for card in (self.memory_card, self.performance_card, self.readiness_card):
+            scores_row.addWidget(card, 1)
         layout.addLayout(scores_row)
 
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        layout.addWidget(line)
-
         # AI mode switch + status indicator.
-        ai_row = QHBoxLayout()
-        ai_row.addWidget(QLabel("AI question generation:"))
+        ai_card = QFrame()
+        ai_card.setObjectName("Card")
+        ai_row = QHBoxLayout(ai_card)
+        ai_row.setContentsMargins(14, 9, 14, 9)
+        ai_title = QLabel("AI QUESTION GENERATION")
+        ai_title.setObjectName("SectionLabel")
+        ai_row.addWidget(ai_title)
         self.ai_mode_combo = QComboBox()
         self.ai_mode_combo.addItem("Off — use the built-in bank only", ai.MODE_OFF)
         self.ai_mode_combo.addItem("Manual — generate when I click", ai.MODE_MANUAL)
@@ -114,43 +413,55 @@ class SpeedrunDialog(QDialog):
         self.ai_status_label.setTextFormat(Qt.TextFormat.RichText)
         ai_row.addWidget(self.ai_status_label)
         ai_row.addStretch(1)
-        layout.addLayout(ai_row)
+        layout.addWidget(ai_card)
 
-        # Practice area.
+        # Practice card.
+        practice = QFrame()
+        practice.setObjectName("Card")
+        pv = QVBoxLayout(practice)
+        pv.setContentsMargins(16, 14, 16, 16)
+        pv.setSpacing(9)
+
         self.daily_label = QLabel("")
         self.daily_label.setWordWrap(True)
         self.daily_label.setStyleSheet("font-size: 11px;")
-        layout.addWidget(self.daily_label)
+        pv.addWidget(self.daily_label)
 
         self.progress_label = QLabel("")
-        layout.addWidget(self.progress_label)
+        self.progress_label.setStyleSheet(f"color:{t['muted']}; font-size: 11px;")
+        pv.addWidget(self.progress_label)
 
         self.topic_label = QLabel("")
-        self.topic_label.setStyleSheet("font-weight: bold; color: palette(mid);")
-        layout.addWidget(self.topic_label)
+        self.topic_label.setStyleSheet(
+            f"color:{_ACCENTS['performance']}; font-weight: 700; font-size: 12px;"
+        )
+        pv.addWidget(self.topic_label)
 
         self.stem_label = QLabel("Start practice to begin.")
+        self.stem_label.setObjectName("Stem")
         self.stem_label.setWordWrap(True)
         self.stem_label.setTextFormat(Qt.TextFormat.RichText)
-        self.stem_label.setMinimumHeight(80)
+        self.stem_label.setMinimumHeight(56)
         self.stem_label.setAlignment(
             Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
         )
-        layout.addWidget(self.stem_label)
+        pv.addWidget(self.stem_label)
 
         self.option_buttons: dict[str, QPushButton] = {}
         for letter in ("A", "B", "C", "D"):
             btn = QPushButton("")
-            btn.setMinimumHeight(36)
+            btn.setObjectName("Option")
+            btn.setMinimumHeight(42)
             # Stop Qt from styling the first answer as the dialog's "default"
             # button (macOS draws that highlighted, making A look pre-selected).
             btn.setAutoDefault(False)
             btn.setDefault(False)
             btn.clicked.connect(lambda _checked=False, l=letter: self.on_answer(l))
-            layout.addWidget(btn)
+            pv.addWidget(btn)
             self.option_buttons[letter] = btn
 
         self.dont_know_button = QPushButton("I don't know / I'm guessing")
+        self.dont_know_button.setObjectName("Ghost")
         self.dont_know_button.setAutoDefault(False)
         self.dont_know_button.setDefault(False)
         self.dont_know_button.setToolTip(
@@ -159,21 +470,25 @@ class SpeedrunDialog(QDialog):
             "lucky guess can never inflate your Performance or Readiness."
         )
         self.dont_know_button.clicked.connect(self.on_dont_know)
-        layout.addWidget(self.dont_know_button)
+        pv.addWidget(self.dont_know_button)
 
         self.feedback_label = QLabel("")
         self.feedback_label.setWordWrap(True)
         self.feedback_label.setTextFormat(Qt.TextFormat.RichText)
-        layout.addWidget(self.feedback_label)
+        pv.addWidget(self.feedback_label)
 
         self.next_button = QPushButton("Next question")
+        self.next_button.setObjectName("Primary")
         self.next_button.clicked.connect(self.on_next)
-        layout.addWidget(self.next_button)
+        pv.addWidget(self.next_button)
 
+        layout.addWidget(practice)
         layout.addStretch(1)
 
         controls = QHBoxLayout()
+        controls.setSpacing(8)
         self.start_button = QPushButton("Start practice")
+        self.start_button.setObjectName("Primary")
         self.start_button.setToolTip(
             "Open-ended practice: questions are served one at a time by "
             "concept-level FSRS scheduling (whichever concept is most due, "
@@ -193,7 +508,7 @@ class SpeedrunDialog(QDialog):
         self.test_button.clicked.connect(self.on_take_test)
         controls.addWidget(self.test_button)
 
-        self.setup_button = QPushButton("Set up MCAT content")
+        self.setup_button = QPushButton("Set up content")
         self.setup_button.setToolTip(
             "Add the full built-in MCAT bank: flashcards (every subject) plus "
             "application questions, all from the shared engine. The MCAT deck is "
@@ -213,7 +528,7 @@ class SpeedrunDialog(QDialog):
         self.generate_button.clicked.connect(self.on_generate_ai)
         controls.addWidget(self.generate_button)
 
-        self.calibrate_button = QPushButton("Record full-length score…")
+        self.calibrate_button = QPushButton("Record score…")
         self.calibrate_button.setToolTip(
             "After you sit a real full-length practice test, log what the app "
             "projected vs. your actual scaled score. This calibrates Readiness: "
@@ -230,62 +545,30 @@ class SpeedrunDialog(QDialog):
         controls.addWidget(close_button)
         layout.addLayout(controls)
 
-    def _score_card(self, row: QHBoxLayout, title: str) -> QLabel:
-        box = QGroupBox(title)
-        box_layout = QVBoxLayout(box)
-        label = QLabel("—")
-        label.setWordWrap(True)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        label.setMinimumHeight(96)
-        label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        box_layout.addWidget(label)
-        row.addWidget(box, 1)
-        return label
-
     # Scores ------------------------------------------------------------------
 
     def refresh_scores(self) -> None:
         s = self.mw.col._backend.speedrun_scores()
 
         mem = s.memory
-        if mem.known:
-            self.memory_label.setText(
-                f"<h3>{mem.value:.0f}<span style='font-size:11px'>/100</span></h3>"
-                f"<span style='font-size:11px'>retained over {mem.studied_cards} studied "
-                f"card(s)<br>{mem.topic_coverage * 100:.0f}% of topics covered</span>"
-            )
-        else:
-            self.memory_label.setText(
-                f"<h3 style='color:palette(mid)'>—</h3>"
-                f"<span style='font-size:11px'>{mem.reason}</span>"
-            )
+        self.memory_card.set_pct(
+            mem.known,
+            mem.value,
+            f"retained over {mem.studied_cards} studied card(s) · "
+            f"{mem.topic_coverage * 100:.0f}% of topics",
+            mem.reason,
+        )
 
         perf = s.performance
-        if perf.known:
-            self.performance_label.setText(
-                f"<h3>{perf.value:.0f}<span style='font-size:11px'>/100</span></h3>"
-                f"<span style='font-size:11px'>applied accuracy over {perf.attempts} "
-                f"question(s)<br>{perf.topics_covered} topic(s)</span>"
-            )
-        else:
-            self.performance_label.setText(
-                f"<h3 style='color:palette(mid)'>—</h3>"
-                f"<span style='font-size:11px'>{perf.reason}</span>"
-            )
+        self.performance_card.set_pct(
+            perf.known,
+            perf.value,
+            f"applied accuracy over {perf.attempts} question(s) · "
+            f"{perf.topics_covered} topic(s)",
+            perf.reason,
+        )
 
-        rdy = s.readiness
-        if rdy.known:
-            self.readiness_label.setText(
-                f"<h3>{rdy.projected:.0f}</h3>"
-                f"<span style='font-size:11px'>range {rdy.low:.0f}–{rdy.high:.0f} "
-                f"(472–528 scale)<br>{rdy.confidence} confidence<br>{rdy.calibration_note}"
-                f"</span>"
-            )
-        else:
-            self.readiness_label.setText(
-                f"<h3 style='color:palette(mid)'>—</h3>"
-                f"<span style='font-size:11px'>{rdy.reason}</span>"
-            )
+        self.readiness_card.set_range(s.readiness)
 
     def on_record_calibration(self) -> None:
         """Log a real full-length practice-test outcome to calibrate Readiness.
@@ -581,9 +864,17 @@ class SpeedrunDialog(QDialog):
         for opt_letter, btn in self.option_buttons.items():
             btn.setEnabled(False)
             if opt_letter == q.answer:
-                btn.setStyleSheet("background-color: #cdebc5;")
+                btn.setStyleSheet(
+                    "background-color:#d1f0c7; color:#14532d;"
+                    " border:1px solid #86c98f; border-radius:10px;"
+                    " text-align:left; padding:11px 14px;"
+                )
             elif opt_letter == letter and not correct:
-                btn.setStyleSheet("background-color: #f3c9c9;")
+                btn.setStyleSheet(
+                    "background-color:#f7d1d1; color:#7f1d1d;"
+                    " border:1px solid #e0a3a3; border-radius:10px;"
+                    " text-align:left; padding:11px 14px;"
+                )
 
         verdict = (
             "<b style='color:#2e7d32'>Correct.</b>"
@@ -614,7 +905,11 @@ class SpeedrunDialog(QDialog):
         for opt_letter, btn in self.option_buttons.items():
             btn.setEnabled(False)
             if opt_letter == q.answer:
-                btn.setStyleSheet("background-color: #cdebc5;")
+                btn.setStyleSheet(
+                    "background-color:#d1f0c7; color:#14532d;"
+                    " border:1px solid #86c98f; border-radius:10px;"
+                    " text-align:left; padding:11px 14px;"
+                )
 
         self.feedback_label.setText(
             "<b style='color:#ef6c00'>Marked “don’t know”.</b> Counts as not known, so guessing "
