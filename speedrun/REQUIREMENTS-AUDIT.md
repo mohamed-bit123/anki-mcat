@@ -39,6 +39,7 @@ Exam: **MCAT** (472–528, four 118–132 sections). AI off = fully functional.
 - [x] Step 1 memory calibration (Brier/log-loss + chart) `verify/calibration.py` → `artifacts/calibration.md` (+ `calibration.svg`).
 - [x] Step 2 performance on held-out questions `verify/performance_eval.py` → `artifacts/performance.md`.
 - [x] Step 3 score mapping written up → `speedrun/models/` (memory/performance/readiness one-pagers).
+- [x] Calibration loop **user-reachable** on both apps — `SpeedrunRecordCalibration` RPC + "Record full-length score" UI (desktop `speedrun.py`, mobile `SpeedrunActivity.kt`) writes real projected-vs-actual pairs that tighten the Readiness range and unlock High confidence. Closes the "prove yourself wrong" loop end-to-end.
 - [x] Speed p50/p95/worst incl. **50k cards** + cold dashboard load + peak memory (~82 MB) → `artifacts/latency-50k.md`; sync round-trip < 5s in `artifacts/sync.txt`.
 
 ## Section 12 — deliverables
@@ -46,7 +47,7 @@ Exam: **MCAT** (472–528, four 118–132 sections). AI off = fully functional.
 - [x] Root `README.md` (MCAT stated up front, build for both apps, architecture, Rust-change note → `RUST-CHANGE.md`, files touched → `TOUCHED-UPSTREAM.md`, AGPL + Anki credit).
 - [x] Rust-change one-pager (§7a "why Rust not Python") → `speedrun/RUST-CHANGE.md`.
 - [x] Three model-description one-pagers → `speedrun/models/` (memory, performance, readiness).
-- [ ] Demo video (you) · [~] Brainlift (research exists; format for repo).
+- [ ] Demo video (you) · [x] Brainlift → `speedrun/BRAINLIFT.md` (DOK framework + principle→code map).
 
 ---
 

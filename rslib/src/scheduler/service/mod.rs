@@ -113,6 +113,16 @@ impl crate::services::SchedulerService for Collection {
         Ok((added as u32).into())
     }
 
+    /// Speedrun (MCAT fork): record a full-length practice-test outcome for
+    /// Readiness calibration.
+    fn speedrun_record_calibration(
+        &mut self,
+        input: scheduler::SpeedrunRecordCalibrationRequest,
+    ) -> Result<()> {
+        self.speedrun_record_calibration(input.projected, input.actual)?;
+        Ok(())
+    }
+
     /// Message rendering only, for old graphs.
     fn studied_today_message(
         &mut self,

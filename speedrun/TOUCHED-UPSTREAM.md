@@ -82,6 +82,24 @@ on both platforms; the old per-platform demo seeders were **deleted** — Python
 `ensureQuestionNotetype`/`onSeed` + componentN helpers in `SpeedrunActivity.kt`. Net effect:
 one source of truth in the engine; both apps ship the same 315-item bank.
 
+### Readiness calibration entry path (desktop + mobile)
+
+Closes the "prove yourself wrong" loop: the engine already _read_ calibration
+points (`speedrunCalibration` config) to narrow the Readiness range and unlock
+High confidence, but nothing _wrote_ them. Additive edits only:
+
+- Desktop: `proto/anki/scheduler.proto` (+`SpeedrunRecordCalibration` RPC +
+  `SpeedrunRecordCalibrationRequest` message), `rslib/src/speedrun/content.rs`
+  (+`speedrun_record_calibration`, one undoable `Op::UpdateConfig` op, +3 tests),
+  `rslib/src/scheduler/service/mod.rs` (+impl), `qt/aqt/speedrun.py`
+  (+"Record full-length score…" dialog/button), `pylib/tests/test_speedrun_scores.py`
+  (+e2e test).
+- Mobile `anki` submodule (25.09.2): same proto/`content.rs`/service edits
+  (content uses direct `set_config`, matching that base's non-atomic
+  `record_attempt`; +2 tests). AnkiDroid `SpeedrunActivity.kt`: +"Record
+  full-length score" button + dialog calling `getBackend().speedrunRecordCalibration(...)`.
+  No other upstream files. `.aar` rebuilt so the generated Kotlin binding exists.
+
 ## Merge-difficulty summary (update as the list grows)
 
 Desktop: additive edits at the proto service + its Rust impl (the unavoidable seam

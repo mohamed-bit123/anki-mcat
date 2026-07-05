@@ -109,6 +109,12 @@ next_question **7.7 ms**, scores refresh **143 ms**, cold dashboard load
 One page each: [`speedrun/models/`](speedrun/models/) — memory, performance,
 readiness (math + give-up rule + evidence).
 
+## Brainlift
+
+The learning-science thesis behind the app (SPOVs, expert sources, and a
+principle→code map showing how each finding is implemented):
+[`speedrun/BRAINLIFT.md`](speedrun/BRAINLIFT.md).
+
 ## License
 
 Licensed under the **GNU AGPL, version 3 or later** — see [LICENSE](./LICENSE).

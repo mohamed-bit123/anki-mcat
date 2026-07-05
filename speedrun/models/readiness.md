@@ -8,7 +8,12 @@ a stated confidence — never a single confident number with nothing behind it.
 - The **Performance** score (primary driver) and its raw attempt count.
 - The **Memory** score (ceiling factor).
 - **Calibration points**: past projections vs. the user's real full-length
-  practice-test totals.
+  practice-test totals. Entered by the student after any full-length practice
+  test via **"Record full-length score"** (desktop `qt/aqt/speedrun.py`; mobile
+  `SpeedrunActivity.kt`), which calls the shared-engine RPC
+  `SpeedrunRecordCalibration` (`rslib/src/speedrun/content.rs`). It is stored in
+  collection config (`speedrunCalibration`), so calibration **syncs** across
+  devices like every other score input, and both values are clamped to 472–528.
 
 ## Math
 

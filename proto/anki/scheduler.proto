@@ -86,6 +86,12 @@ service SchedulerService {
   // Speedrun (MCAT fork): seed the built-in MCAT flashcard deck (idempotent).
   // Returns the number of cards added (0 if already present).
   rpc SpeedrunSeedBuiltin(generic.Empty) returns (generic.UInt32);
+  // Speedrun (MCAT fork): record a real full-length practice-test outcome — the
+  // Readiness score projected at the time vs. the actual scaled score. Feeds
+  // the calibration that narrows the Readiness range and unlocks higher
+  // confidence: the "prove yourself wrong" honesty loop. Syncs to every client.
+  rpc SpeedrunRecordCalibration(SpeedrunRecordCalibrationRequest)
+      returns (generic.Empty);
 }
 
 // Implicitly includes any of the above methods that are not listed in the
@@ -103,6 +109,14 @@ service BackendSchedulerService {
 message SpeedrunRecordAttemptRequest {
   int64 card_id = 1;
   bool correct = 2;
+}
+
+// Speedrun (MCAT fork): one calibration data point — the Readiness score
+// projected previously vs. the student's actual full-length practice-test
+// score. Both are clamped to the MCAT scale (472–528) by the engine.
+message SpeedrunRecordCalibrationRequest {
+  float projected = 1;
+  float actual = 2;
 }
 
 // Speedrun (MCAT fork): the three deliberately-separate scores. `known` is

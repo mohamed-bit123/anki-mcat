@@ -73,6 +73,38 @@ def test_three_scores_end_to_end():
         col.close()
 
 
+def test_calibration_recorded_through_backend_recalibrates_readiness():
+    col = getEmptyCol()
+    try:
+        for _ in range(25):
+            _add_flashcard(col)
+        for name in ("T1", "T2", "T3"):
+            did = col.decks.id(name)
+            for _ in range(4):
+                q = _add_question(col, did)
+                col._backend.speedrun_record_attempt(card_id=q, correct=True)
+
+        before = col._backend.speedrun_scores()
+        assert before.readiness.known
+        assert "not yet calibrated" in before.readiness.calibration_note.lower()
+
+        # Log a real full-length outcome via the backend RPC.
+        projected = before.readiness.projected
+        col._backend.speedrun_record_calibration(
+            projected=projected, actual=projected + 3.0
+        )
+
+        after = col._backend.speedrun_scores()
+        assert "off by" in after.readiness.calibration_note.lower()
+        assert 472.0 <= after.readiness.projected <= 528.0
+
+        # Out-of-scale inputs are clamped, not rejected, and still recalibrate.
+        col._backend.speedrun_record_calibration(projected=999.0, actual=100.0)
+        assert col._backend.speedrun_scores().readiness.known
+    finally:
+        col.close()
+
+
 def test_readiness_refused_without_application_questions():
     col = getEmptyCol()
     try:

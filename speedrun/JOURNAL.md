@@ -902,3 +902,58 @@ three separated scores with ranges + give-up rules in `scores.rs`; AI-off still 
 (scores are pure Rust, independent of AI). Remaining are genuinely yours: signed/notarized
 desktop installer + clean-machine install recordings (both platforms), the 3–5 min demo
 video, and formatting the Brainlift into the repo.
+
+---
+
+## 2026-07-05 — Brainlift into repo + Readiness calibration entry path (both apps)
+
+Two-part completion pass after a full re-audit of both repos (delegated to two
+parallel sub-agents: desktop completeness, mobile parity).
+
+**Brainlift** → new `speedrun/BRAINLIFT.md`. The full DOK-structured Brainlift
+(Facts → Summaries → Insights → SPOVs, expert sources: Dunlosky, Willingham,
+Roediger, Karpicke, Bjork) plus a **principle→code map** tying each
+learning-science claim to the module that implements it (SPOV "order by memory
+strength + interleave" → `queue.rs`; combined retrieval/spacing/interleave loop
+→ `concepts.rs`; "readiness = retrieval accessibility, not confidence" →
+`scores.rs` give-up rule; etc.), and an honest "design tensions" section
+(errorless-vs-difficult retrieval; interleaving's high-alternation failure mode).
+Linked from `README.md`; audit item flipped to met.
+
+**The one real functional gap both audits found: calibration had no input path.**
+`scores.rs` _reads_ `speedrunCalibration` to narrow the Readiness range and
+unlock High confidence, but nothing ever _wrote_ it — so the documented "prove
+yourself wrong" honesty loop was unreachable and confidence was capped at Medium
+forever. Fixed end-to-end, in the **shared engine** so it ships to both apps:
+
+- Engine (desktop `anki` 26.05 + mobile `anki` submodule 25.09.2): additive
+  `SpeedrunRecordCalibration` RPC + `SpeedrunRecordCalibrationRequest` message in
+  `scheduler.proto`; `Collection::speedrun_record_calibration(projected, actual)`
+  in `content.rs` (clamps to 472–528, caps the list, appends to config); service
+  impl in `scheduler/service/mod.rs`. Desktop wraps it in one undoable
+  `Op::UpdateConfig` op (matching desktop's atomic `record_attempt`); mobile uses
+  direct `set_config` (matching 25.09.2's non-atomic `record_attempt`).
+- Because it rides collection **config**, calibration **syncs** across devices
+  for free, like attempts and concept-FSRS state.
+- UI: desktop "Record full-length score…" dialog (`qt/aqt/speedrun.py`, projected
+  pre-filled from the current projection); mobile "Record full-length score"
+  `AlertDialog` (`SpeedrunActivity.kt`).
+- Tests: 3 new Rust tests desktop (record+read, clamp, note-change+undo) + 2
+  mobile (record+clamp, note-change); 1 new Python e2e test. Desktop **`just
+  build` clean**, **38 Rust speedrun tests + 3 Python tests green**, ruff-clean.
+
+**Mobile build gotcha (documented for next time):** `cargo check -p anki` in
+isolation fails to compile the `sync` module (resolves `async-compression 0.4.30`,
+whose API the 25.09.2 sync code predates). This is a **feature-unification
+artifact**, NOT a real break: the shipping build target is the `rsdroid` crate,
+which pulls `anki` with the `rustls` feature → resolves `async-compression 0.4.25`
+→ compiles clean. Validate the mobile engine with `cargo ndk -t arm64-v8a check
+-p rsdroid` (from `Anki-Android-Backend/`), never `-p anki`. Rebuilt the rsdroid
+`.aar` via `cargo run -p build_rust` (env: `ANDROID_HOME`, `ANDROID_NDK_HOME`
+= ndk 29.0.14206865, `JAVA_HOME` = temurin-17) so the generated Kotlin binding
+`speedrunRecordCalibration(...)` exists for `SpeedrunActivity.kt`.
+
+Docs updated: `BRAINLIFT.md` (new), `models/readiness.md` (entry path + sync
+note), `TOUCHED-UPSTREAM.md` (calibration section), `REQUIREMENTS-AUDIT.md`
+(§9 + Brainlift). Still genuinely owner-only: Apple notarization / signed
+installer + clean-install recordings, and the 3–5 min demo video.

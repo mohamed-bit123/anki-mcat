@@ -213,6 +213,17 @@ class SpeedrunDialog(QDialog):
         self.generate_button.clicked.connect(self.on_generate_ai)
         controls.addWidget(self.generate_button)
 
+        self.calibrate_button = QPushButton("Record full-length score…")
+        self.calibrate_button.setToolTip(
+            "After you sit a real full-length practice test, log what the app "
+            "projected vs. your actual scaled score. This calibrates Readiness: "
+            "the range tightens to your real prediction error and, once "
+            "calibrated, higher confidence can be reached. This is the "
+            "“prove yourself wrong” honesty loop."
+        )
+        self.calibrate_button.clicked.connect(self.on_record_calibration)
+        controls.addWidget(self.calibrate_button)
+
         controls.addStretch(1)
         close_button = QPushButton("Close")
         close_button.clicked.connect(self.accept)
@@ -275,6 +286,63 @@ class SpeedrunDialog(QDialog):
                 f"<h3 style='color:palette(mid)'>—</h3>"
                 f"<span style='font-size:11px'>{rdy.reason}</span>"
             )
+
+    def on_record_calibration(self) -> None:
+        """Log a real full-length practice-test outcome to calibrate Readiness.
+
+        Writes to the engine (`speedrun_record_calibration`), so the calibration
+        rides collection config and syncs to the phone like every other score
+        input. The projected field is pre-filled with the app's current
+        Readiness projection so the common case is one edit + OK.
+        """
+        s = self.mw.col._backend.speedrun_scores()
+        rdy = s.readiness
+        projected_default = int(round(rdy.projected)) if rdy.known else 500
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Record full-length practice score")
+        disable_help_button(dialog)
+        form = QFormLayout(dialog)
+
+        blurb = QLabel(
+            "After a real full-length practice test, log what the app projected "
+            "at the time and the actual scaled score you got (both on the "
+            "472–528 MCAT scale). This calibrates Readiness against reality: the "
+            "range tightens to your true prediction error, and higher confidence "
+            "becomes reachable."
+        )
+        blurb.setWordWrap(True)
+        blurb.setMinimumWidth(360)
+        form.addRow(blurb)
+
+        projected_spin = QSpinBox()
+        projected_spin.setRange(472, 528)
+        projected_spin.setValue(projected_default)
+        if rdy.known:
+            projected_spin.setToolTip("Pre-filled with the app's current projection.")
+        form.addRow("Projected (app's guess):", projected_spin)
+
+        actual_spin = QSpinBox()
+        actual_spin.setRange(472, 528)
+        actual_spin.setValue(projected_default)
+        form.addRow("Actual (your real score):", actual_spin)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        form.addRow(buttons)
+
+        if not dialog.exec():
+            return
+
+        self.mw.col._backend.speedrun_record_calibration(
+            projected=float(projected_spin.value()),
+            actual=float(actual_spin.value()),
+        )
+        self.refresh_scores()
+        tooltip("Recorded — Readiness recalibrated to your real score.", parent=self)
 
     # Practice flow (open-ended, one question at a time) ----------------------
 
