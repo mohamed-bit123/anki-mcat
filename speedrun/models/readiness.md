@@ -19,9 +19,14 @@ a stated confidence — never a single confident number with nothing behind it.
 
 `readiness_score` (`rslib/src/speedrun/scores.rs`):
 
-1. **Memory ceiling.** `mem_mult = 0.8 + 0.2·memory` ∈ [0.8, 1.0] — weak
+1. **Memory ceiling.** `mem_mult = 0.8 + 0.2·ceiling` ∈ [0.8, 1.0] — weak
    retention caps how much measured performance we trust to hold on test day.
-   Unknown memory → neutral 0.9 and lower confidence.
+   With a **target exam date** set, `ceiling = 0.5·recall_now + 0.5·recall_projected_to_exam`,
+   where the projection decays each topic's retrievability forward to the exam
+   using FSRS **stability** (storage strength). So durable knowledge projects
+   higher and fragile, crammed knowledge (high retrieval / low storage) projects
+   lower. Without an exam date, `ceiling = recall_now` (today-only). Unknown
+   memory → neutral 0.9 and lower confidence.
 2. **Effective accuracy** = `performance · mem_mult`.
 3. **Point → scale map** (`map_pct_to_score`): linear between documented
    anchors — ~30% correct ≈ 486, ~90% ≈ 522 (≈500 at ~50%). These anchors are an
@@ -29,8 +34,12 @@ a stated confidence — never a single confident number with nothing behind it.
    replaces them with the user's real data.
 4. **Range.** A **Wilson** interval on the accuracy (sample size = attempts),
    mapped through the same steps, then widened by calibration RMSE — or by a
-   default ±6 points when never calibrated. The range widens with less data and
-   larger past error (unit test `readiness_range_widens_with_less_data`).
+   default ±6 points when never calibrated — **and by the durability gap**
+   (`recall_now − recall_projected_to_exam`): fragile knowledge that won't hold
+   to test day makes the outcome less certain, so the range widens. The range
+   widens with less data, larger past error, and a bigger durability gap (unit
+   tests `readiness_range_widens_with_less_data`,
+   `exam_projection_penalizes_fragile_knowledge`).
 5. **Confidence** (low/medium/high) from attempt count, topic coverage, whether
    memory is known, and whether calibrated.
 

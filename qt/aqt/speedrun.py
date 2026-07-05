@@ -91,39 +91,39 @@ def _theme() -> dict[str, str]:
 def _dialog_qss(t: dict[str, str]) -> str:
     a = _ACCENTS["memory"]
     return f"""
-    QDialog {{ background: {t['page']}; }}
+    QDialog {{ background: {t["page"]}; }}
     QScrollArea {{ border: none; background: transparent; }}
-    #ScrollBody {{ background: {t['page']}; }}
-    #ControlsBar {{ background: {t['page']}; border-top: 1px solid {t['border']}; }}
-    QLabel {{ color: {t['text']}; }}
+    #ScrollBody {{ background: {t["page"]}; }}
+    #ControlsBar {{ background: {t["page"]}; border-top: 1px solid {t["border"]}; }}
+    QLabel {{ color: {t["text"]}; }}
     #Header {{ font-size: 20px; font-weight: 700; }}
-    #Subheader {{ font-size: 12px; color: {t['muted']}; }}
-    #SectionLabel {{ color: {t['muted']}; font-size: 11px; font-weight: 700; }}
+    #Subheader {{ font-size: 12px; color: {t["muted"]}; }}
+    #SectionLabel {{ color: {t["muted"]}; font-size: 11px; font-weight: 700; }}
     #Stem {{ font-size: 15px; }}
-    QFrame#Card {{ background: {t['card']}; border: 1px solid {t['border']};
+    QFrame#Card {{ background: {t["card"]}; border: 1px solid {t["border"]};
                    border-radius: 14px; }}
-    QComboBox {{ background: {t['card']}; color: {t['text']};
-                 border: 1px solid {t['border']}; border-radius: 8px;
+    QComboBox {{ background: {t["card"]}; color: {t["text"]};
+                 border: 1px solid {t["border"]}; border-radius: 8px;
                  padding: 5px 10px; min-height: 20px; }}
     QComboBox::drop-down {{ border: none; width: 20px; }}
-    QComboBox QAbstractItemView {{ background: {t['card']}; color: {t['text']};
-                 border: 1px solid {t['border']};
+    QComboBox QAbstractItemView {{ background: {t["card"]}; color: {t["text"]};
+                 border: 1px solid {t["border"]};
                  selection-background-color: {_hex_rgba(a, 0.18)};
-                 selection-color: {t['text']}; outline: none; }}
-    QPushButton {{ background: {t['card']}; color: {t['text']};
-                   border: 1px solid {t['border']}; border-radius: 9px;
+                 selection-color: {t["text"]}; outline: none; }}
+    QPushButton {{ background: {t["card"]}; color: {t["text"]};
+                   border: 1px solid {t["border"]}; border-radius: 9px;
                    padding: 8px 14px; }}
     QPushButton:hover:enabled {{ border-color: {a}; color: {a}; }}
-    QPushButton:disabled {{ color: {t['muted']}; }}
+    QPushButton:disabled {{ color: {t["muted"]}; }}
     QPushButton#Primary {{ background: {a}; color: #ffffff; border: none;
                            font-weight: 600; }}
     QPushButton#Primary:hover:enabled {{ background: #2f6ae0; color: #ffffff; }}
-    QPushButton#Primary:disabled {{ background: {t['track']}; color: {t['muted']}; }}
+    QPushButton#Primary:disabled {{ background: {t["track"]}; color: {t["muted"]}; }}
     QPushButton#Option {{ text-align: left; padding: 11px 14px; border-radius: 10px; }}
     QPushButton#Option:hover:enabled {{ border-color: {a};
-                   background: {_hex_rgba(a, 0.06)}; color: {t['text']}; }}
-    QPushButton#Ghost {{ background: transparent; border: 1px solid {t['border']};
-                         color: {t['muted']}; }}
+                   background: {_hex_rgba(a, 0.06)}; color: {t["text"]}; }}
+    QPushButton#Ghost {{ background: transparent; border: 1px solid {t["border"]};
+                         color: {t["muted"]}; }}
     QPushButton#Ghost:hover:enabled {{ color: {a}; border-color: {a}; }}
     """
 
@@ -136,11 +136,13 @@ class _Bar(QWidget):
         self._accent = QColor(accent)
         self._track = QColor(track)
         self._value: float | None = None
+        self._projected: float | None = None
         self.setFixedHeight(8)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-    def set_value(self, value: float | None) -> None:
+    def set_value(self, value: float | None, projected: float | None = None) -> None:
         self._value = value
+        self._projected = projected
         self.update()
 
     def paintEvent(self, _event: object) -> None:
@@ -156,6 +158,14 @@ class _Bar(QWidget):
             width = max(rect.height(), rect.width() * frac)
             p.setBrush(self._accent)
             p.drawRoundedRect(QRectF(0, 0, width, rect.height()), radius, radius)
+            # Marker showing where recall is projected to fall by the exam
+            # (storage strength): the gap to the fill is the durability risk.
+            if self._projected is not None and self._projected < self._value:
+                pfrac = max(0.0, min(1.0, self._projected / 100.0))
+                x = max(1.5, rect.width() * pfrac)
+                pen = QPen(QColor("#ffffff"), 2)
+                p.setPen(pen)
+                p.drawLine(QPointF(x, 0), QPointF(x, rect.height()))
         p.end()
 
 
@@ -262,7 +272,9 @@ class _ScoreCard(QFrame):
 
         self._value = QLabel("—")
         self._value.setTextFormat(Qt.TextFormat.RichText)
-        self._value.setStyleSheet(f"color:{t['text']}; font-size:30px; font-weight:700;")
+        self._value.setStyleSheet(
+            f"color:{t['text']}; font-size:30px; font-weight:700;"
+        )
         lay.addWidget(self._value)
 
         if kind == "pct":
@@ -303,10 +315,17 @@ class _ScoreCard(QFrame):
         )
         self._pill.setVisible(True)
 
-    def set_pct(self, known: bool, value: float, caption: str, reason: str) -> None:
+    def set_pct(
+        self,
+        known: bool,
+        value: float,
+        caption: str,
+        reason: str,
+        projected: float | None = None,
+    ) -> None:
         if known:
             self._value.setText(f"{value:.0f}{self._unit('/ 100')}")
-            self._bar.set_value(value)  # type: ignore[attr-defined]
+            self._bar.set_value(value, projected)  # type: ignore[attr-defined]
             self._caption.setText(caption)
             self._set_pill(None, None)
         else:
@@ -319,11 +338,16 @@ class _ScoreCard(QFrame):
         if rdy.known:  # type: ignore[attr-defined]
             self._value.setText(f"{rdy.projected:.0f}{self._unit('/ 528')}")  # type: ignore[attr-defined]
             self._bar.set_range(rdy.projected, rdy.low, rdy.high)  # type: ignore[attr-defined]
+            exam = ""
+            if getattr(rdy, "has_exam", False):  # type: ignore[attr-defined]
+                exam = f"projected for exam in {rdy.days_to_exam}d · "  # type: ignore[attr-defined]
             self._caption.setText(
-                f"Likely {rdy.low:.0f}–{rdy.high:.0f} · {rdy.calibration_note}"  # type: ignore[attr-defined]
+                f"{exam}likely {rdy.low:.0f}–{rdy.high:.0f} · {rdy.calibration_note}"  # type: ignore[attr-defined]
             )
             conf = (rdy.confidence or "low").lower()  # type: ignore[attr-defined]
-            self._set_pill(f"{conf.title()} confidence", _CONF.get(conf, self._t["muted"]))
+            self._set_pill(
+                f"{conf.title()} confidence", _CONF.get(conf, self._t["muted"])
+            )
         else:
             self._value.setText("—")
             self._bar.set_range(None, None, None)  # type: ignore[attr-defined]
@@ -432,6 +456,33 @@ class SpeedrunDialog(QDialog):
         ai_row.addWidget(self.ai_status_label)
         ai_row.addStretch(1)
         layout.addWidget(ai_card)
+
+        # Exam date row — drives the forward projection of Readiness.
+        exam_card = QFrame()
+        exam_card.setObjectName("Card")
+        exam_row = QHBoxLayout(exam_card)
+        exam_row.setContentsMargins(14, 9, 14, 9)
+        exam_title = QLabel("EXAM DATE")
+        exam_title.setObjectName("SectionLabel")
+        exam_row.addWidget(exam_title)
+        self.exam_label = QLabel("")
+        self.exam_label.setStyleSheet(f"color:{t['muted']}; font-size: 12px;")
+        exam_row.addWidget(self.exam_label)
+        exam_row.addStretch(1)
+        set_exam_button = QPushButton("Set…")
+        set_exam_button.setToolTip(
+            "Set your target MCAT date. Readiness then projects each topic's "
+            "recall forward to that day using FSRS stability (storage strength), "
+            "so durable knowledge counts and fragile, crammed knowledge is "
+            "discounted — and the range widens with the durability gap."
+        )
+        set_exam_button.clicked.connect(self.on_set_exam_date)
+        exam_row.addWidget(set_exam_button)
+        self.clear_exam_button = QPushButton("Clear")
+        self.clear_exam_button.setObjectName("Ghost")
+        self.clear_exam_button.clicked.connect(self.on_clear_exam_date)
+        exam_row.addWidget(self.clear_exam_button)
+        layout.addWidget(exam_card)
 
         # Practice card.
         practice = QFrame()
@@ -576,12 +627,18 @@ class SpeedrunDialog(QDialog):
         s = self.mw.col._backend.speedrun_scores()
 
         mem = s.memory
+        mem_caption = (
+            f"recall now · durability ~{mem.mean_stability_days:.0f}d stability · "
+            f"{mem.topic_coverage * 100:.0f}% topics"
+        )
+        projected = None
+        if mem.has_projection:
+            projected = mem.projected_recall
+            mem_caption += (
+                f"\n~{mem.projected_recall:.0f}% recall on exam day if you stop now"
+            )
         self.memory_card.set_pct(
-            mem.known,
-            mem.value,
-            f"retained over {mem.studied_cards} studied card(s) · "
-            f"{mem.topic_coverage * 100:.0f}% of topics",
-            mem.reason,
+            mem.known, mem.value, mem_caption, mem.reason, projected
         )
 
         perf = s.performance
@@ -594,6 +651,7 @@ class SpeedrunDialog(QDialog):
         )
 
         self.readiness_card.set_range(s.readiness)
+        self._update_exam_label()
 
     def on_record_calibration(self) -> None:
         """Log a real full-length practice-test outcome to calibrate Readiness.
@@ -651,6 +709,68 @@ class SpeedrunDialog(QDialog):
         )
         self.refresh_scores()
         tooltip("Recorded — Readiness recalibrated to your real score.", parent=self)
+
+    def _exam_timestamp(self) -> int:
+        return int(self.mw.col.get_config("speedrunExamTimestamp", 0) or 0)
+
+    def _update_exam_label(self) -> None:
+        ts = self._exam_timestamp()
+        if ts > 0:
+            date = QDateTime.fromSecsSinceEpoch(ts).date()
+            days = max(0, QDate.currentDate().daysTo(date))
+            self.exam_label.setText(
+                f"{date.toString('MMM d, yyyy')} · {days} days away — "
+                "Readiness projects to this day"
+            )
+            self.clear_exam_button.setEnabled(True)
+        else:
+            self.exam_label.setText("Not set — Readiness reflects today only")
+            self.clear_exam_button.setEnabled(False)
+
+    def on_set_exam_date(self) -> None:
+        """Set the target exam date; Readiness then projects recall to that day."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Set exam date")
+        disable_help_button(dialog)
+        form = QFormLayout(dialog)
+        blurb = QLabel(
+            "Set your target MCAT date. Readiness then projects each topic's "
+            "recall forward to that date using FSRS stability, so durable "
+            "knowledge counts fully and fragile, crammed knowledge is discounted "
+            "(and the likely range widens with the durability gap)."
+        )
+        blurb.setWordWrap(True)
+        blurb.setMinimumWidth(360)
+        form.addRow(blurb)
+
+        date_edit = QDateEdit()
+        date_edit.setCalendarPopup(True)
+        date_edit.setMinimumDate(QDate.currentDate())
+        cur = self._exam_timestamp()
+        date_edit.setDate(
+            QDateTime.fromSecsSinceEpoch(cur).date()
+            if cur > 0
+            else QDate.currentDate().addDays(30)
+        )
+        form.addRow("Exam date:", date_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        form.addRow(buttons)
+        if not dialog.exec():
+            return
+        ts = QDateTime(date_edit.date(), QTime(9, 0)).toSecsSinceEpoch()
+        self.mw.col._backend.speedrun_set_exam_date(timestamp=ts)
+        self.refresh_scores()
+        tooltip("Exam date set — Readiness now projects to that day.", parent=self)
+
+    def on_clear_exam_date(self) -> None:
+        self.mw.col._backend.speedrun_set_exam_date(timestamp=0)
+        self.refresh_scores()
+        tooltip("Exam date cleared.", parent=self)
 
     # Practice flow (open-ended, one question at a time) ----------------------
 

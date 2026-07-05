@@ -68,9 +68,24 @@ pub(crate) fn review_priority_input_for_card(
 }
 
 pub(crate) fn card_retrievability(card: &Card, timing: &SchedTimingToday) -> f32 {
+    card_retrievability_at(card, timing, 0)
+}
+
+/// Retrievability `extra_seconds` into the future (0 = now), assuming no
+/// further review. Projecting to the exam date is how *storage strength* (FSRS
+/// stability) enters the scores: durable memories stay high, fragile ones
+/// decay.
+pub(crate) fn card_retrievability_at(
+    card: &Card,
+    timing: &SchedTimingToday,
+    extra_seconds: u32,
+) -> f32 {
     if let Some(state) = card.memory_state {
         // Real FSRS forgetting curve.
-        let elapsed_seconds = card.seconds_since_last_review(timing).unwrap_or_default();
+        let elapsed_seconds = card
+            .seconds_since_last_review(timing)
+            .unwrap_or_default()
+            .saturating_add(extra_seconds);
         let fsrs = fsrs::FSRS::new(None).expect("default FSRS");
         fsrs.current_retrievability_seconds(
             state.into(),
@@ -80,10 +95,21 @@ pub(crate) fn card_retrievability(card: &Card, timing: &SchedTimingToday) -> f32
     } else {
         // SM-2 / no memory-state proxy: the more overdue relative to the
         // interval, the lower the estimated retrievability.
-        let overdue_days = (timing.days_elapsed as i32 - card.due).max(0) as f32;
+        let extra_days = extra_seconds as f32 / 86_400.0;
+        let overdue_days = (timing.days_elapsed as i32 - card.due).max(0) as f32 + extra_days;
         let interval = card.interval.max(1) as f32;
         (1.0 / (1.0 + overdue_days / interval)).clamp(0.0, 1.0)
     }
+}
+
+/// FSRS stability in days (storage strength); 0 when there is no memory state.
+pub(crate) fn card_stability_days(card: &Card) -> f32 {
+    card.memory_state
+        .map(|s| {
+            let ms: fsrs::MemoryState = s.into();
+            ms.stability
+        })
+        .unwrap_or(0.0)
 }
 
 fn card_difficulty(card: &Card) -> f32 {

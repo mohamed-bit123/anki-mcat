@@ -123,6 +123,16 @@ impl crate::services::SchedulerService for Collection {
         Ok(())
     }
 
+    /// Speedrun (MCAT fork): set/clear the target exam date (forward
+    /// projection).
+    fn speedrun_set_exam_date(
+        &mut self,
+        input: scheduler::SpeedrunSetExamDateRequest,
+    ) -> Result<()> {
+        self.speedrun_set_exam_date(input.timestamp)?;
+        Ok(())
+    }
+
     /// Message rendering only, for old graphs.
     fn studied_today_message(
         &mut self,

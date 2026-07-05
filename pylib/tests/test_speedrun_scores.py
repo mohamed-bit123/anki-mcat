@@ -8,6 +8,8 @@ Performance), logs graded attempts via the backend, and checks that the engine
 returns Memory/Performance/Readiness with the honesty rules intact.
 """
 
+import time
+
 from anki.consts import CARD_TYPE_REV, QUEUE_TYPE_REV
 from tests.shared import getEmptyCol
 
@@ -101,6 +103,38 @@ def test_calibration_recorded_through_backend_recalibrates_readiness():
         # Out-of-scale inputs are clamped, not rejected, and still recalibrate.
         col._backend.speedrun_record_calibration(projected=999.0, actual=100.0)
         assert col._backend.speedrun_scores().readiness.known
+    finally:
+        col.close()
+
+
+def test_exam_date_projection_through_backend():
+    col = getEmptyCol()
+    try:
+        for _ in range(25):
+            _add_flashcard(col)
+        for name in ("T1", "T2", "T3"):
+            did = col.decks.id(name)
+            for _ in range(4):
+                q = _add_question(col, did)
+                col._backend.speedrun_record_attempt(card_id=q, correct=True)
+
+        # No exam date by default: no projection, readiness reflects today.
+        s0 = col._backend.speedrun_scores()
+        assert not s0.readiness.has_exam
+        assert not s0.memory.has_projection
+
+        # Set an exam ~60 days out; projection + days-to-exam appear.
+        ts = int(time.time()) + 60 * 86400
+        col._backend.speedrun_set_exam_date(timestamp=ts)
+        s1 = col._backend.speedrun_scores()
+        assert s1.readiness.has_exam
+        assert 55 <= s1.readiness.days_to_exam <= 61
+        assert s1.memory.has_projection
+        assert s1.memory.mean_stability_days >= 0.0
+
+        # Clearing (0) removes the projection.
+        col._backend.speedrun_set_exam_date(timestamp=0)
+        assert not col._backend.speedrun_scores().readiness.has_exam
     finally:
         col.close()
 

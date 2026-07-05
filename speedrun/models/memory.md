@@ -6,9 +6,25 @@ coverage job, not Memory's.
 
 ## Inputs
 
-- Per studied card: FSRS **retrievability** (probability of recall today, 0–1),
-  the card's **topic points** (MCAT yield weight), and topic id.
-- Source: Anki/FSRS memory state, computed by the shared Rust engine.
+- Per studied card: FSRS **retrievability** (probability of recall today, 0–1 —
+  _retrieval strength_), FSRS **stability** in days (_storage strength_,
+  resistance to forgetting), a **projected retrievability** (recall on the exam
+  date if you stop reviewing today), the card's **topic points** (MCAT yield
+  weight), and topic id.
+- Source: Anki/FSRS memory state, computed by the shared Rust engine
+  (`card_retrievability_at` / `card_stability_days` in `queue.rs`).
+
+## Retrieval strength vs. storage strength (Bjork)
+
+FSRS separates the two properties the Brainlift is built on: **retrieval
+strength** (can you recall it _now_ — decays with time since last study) and
+**storage strength** (how durable it is — FSRS stability). The Memory score's
+headline number is retrieval strength now; alongside it the engine reports mean
+**stability (days)** and, when an exam date is set, the topic-weighted
+**projected recall on exam day** (`projected_recall`). Crammed knowledge (high
+retrieval, low storage) and durable knowledge look identical on the headline
+number but diverge on durability — which is exactly what the projection surfaces
+and what feeds Readiness.
 
 ## Math
 
