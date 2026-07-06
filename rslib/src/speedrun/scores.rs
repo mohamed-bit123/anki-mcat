@@ -383,32 +383,39 @@ pub fn readiness_score(
         }
     };
 
-    // No separate memory ceiling: current retention already flows into
-    // Performance (memory-gated), so multiplying by memory again would
-    // double-count it. Memory enters Readiness only through (a) Performance and
-    // (b) the exam projection below.
-    let mem_known = memory.value.is_some();
-
-    // Exam projection: scale Performance by the fraction of retention expected
-    // to survive to the exam date (`projected_recall / recall_now`, a flashcard-
-    // memory proxy). Fragile knowledge that won't hold to test day lowers the
-    // projection and — via `durability_gap` — widens the range. No exam → 1.0.
-    let survival = match (days_to_exam, memory.value, memory.projected_recall) {
-        (Some(_), Some(v), Some(p)) if v > 0.0 => (p as f64 / v as f64).clamp(0.0, 1.0),
-        _ => 1.0,
+    // Memory ceiling: your projected exam score is capped by how much of the
+    // fact base you actually retain (Willingham/Bjork — application needs
+    // retrieval). With an exam date, use a 50/50 blend of recall-now and
+    // projected-recall-on-exam-day so durability enters the score; `durability_gap`
+    // is how much recall is expected to decay by the exam. This is a *distinct*
+    // signal from Performance's concept-retention gate (flashcard recall vs
+    // question-practice recall), so BOTH studying facts and practicing questions
+    // move Readiness. Unknown memory → neutral 0.9 and lower confidence.
+    let (mem_factor, durability_gap, mem_known) = match memory.value {
+        Some(m) => {
+            let now = (m as f64 / 100.0).clamp(0.0, 1.0);
+            match memory.projected_recall {
+                Some(p) => {
+                    let hold = (p as f64 / 100.0).clamp(0.0, 1.0);
+                    (0.5 * now + 0.5 * hold, (now - hold).max(0.0), true)
+                }
+                None => (now, 0.0, true),
+            }
+        }
+        None => (0.9, 0.0, false),
     };
-    let durability_gap = perf_pct * (1.0 - survival);
+    let mem_mult = 0.8 + 0.2 * mem_factor;
 
-    let effective_pct = (perf_pct * survival).clamp(0.0, 1.0);
+    let effective_pct = (perf_pct * mem_mult).clamp(0.0, 1.0);
     let projected = map_pct_to_score(effective_pct, cfg);
 
     // Range: Wilson interval on the accuracy (sample size = raw attempts),
-    // scaled by the same survival factor, mapped to score, then inflated by
+    // scaled by the same memory multiplier, mapped to score, then inflated by
     // calibration error (or a default when uncalibrated) and by the durability
     // gap (fragile knowledge → less certain it holds to test day).
     let (lo_pct, hi_pct) = wilson_interval(perf_pct, performance.attempts, cfg.interval_z);
-    let mut low = map_pct_to_score((lo_pct * survival).clamp(0.0, 1.0), cfg);
-    let mut high = map_pct_to_score((hi_pct * survival).clamp(0.0, 1.0), cfg);
+    let mut low = map_pct_to_score((lo_pct * mem_mult).clamp(0.0, 1.0), cfg);
+    let mut high = map_pct_to_score((hi_pct * mem_mult).clamp(0.0, 1.0), cfg);
 
     let extra = calibration_uncertainty(calibration, cfg)
         + durability_gap * (cfg.map_high_score - cfg.map_low_score);
@@ -753,6 +760,39 @@ mod test {
         assert!(
             r_fresh > r_stale,
             "forgetting should lower Readiness too: fresh {r_fresh} vs stale {r_stale}"
+        );
+    }
+
+    #[test]
+    fn higher_memory_raises_readiness() {
+        // Same applied performance; stronger fact retention (Memory) must lift
+        // Readiness — so studying flashcards moves the projected score, per the
+        // memory→readiness thesis.
+        let cfg = ScoreConfig::default();
+        let perf = performance_score(&many_attempts(60, 42, 6), 6, &cfg); // 70%
+        let strong = memory_score(
+            &(0..50)
+                .map(|i| card(0.98, 1.0, i % 10, true))
+                .collect::<Vec<_>>(),
+            &cfg,
+            false,
+        );
+        let weak = memory_score(
+            &(0..50)
+                .map(|i| card(0.40, 1.0, i % 10, true))
+                .collect::<Vec<_>>(),
+            &cfg,
+            false,
+        );
+        let r_strong = readiness_score(&strong, &perf, &[], &cfg, None)
+            .projected
+            .unwrap();
+        let r_weak = readiness_score(&weak, &perf, &[], &cfg, None)
+            .projected
+            .unwrap();
+        assert!(
+            r_strong > r_weak,
+            "stronger memory {r_strong} should raise readiness over weak {r_weak}"
         );
     }
 
