@@ -42,6 +42,13 @@ use crate::speedrun::content::QUESTION_TAG;
 pub const CONCEPTS_CONFIG_KEY: &str = "speedrunConcepts";
 /// FSRS desired retention used to schedule concept reviews.
 pub const DESIRED_RETENTION: f32 = 0.9;
+/// Half-life (days) for the applied-retention gate that makes Performance
+/// decline with disuse. A concept's correct-answer evidence is discounted by
+/// 0.5 for every this-many days since it was last practiced. Deliberately a
+/// smooth exponential (not the raw FSRS curve, which collapses within hours for
+/// low-stability concepts) so Performance is steady and — being day-granular —
+/// identical across synced devices instead of cliff-jumping near a day rollover.
+pub const RETENTION_HALF_LIFE_DAYS: f32 = 21.0;
 /// A gentle daily floor: below this you're unlikely to make steady progress.
 pub const RECOMMENDED_DAILY_MIN: u32 = 20;
 /// A soft daily ceiling: past this, added questions show diminishing returns
@@ -107,7 +114,6 @@ impl Collection {
     ) -> Result<HashMap<DeckId, f32>> {
         let timing = self.timing_today()?;
         let today = timing.days_elapsed as i64;
-        let fsrs = FSRS::new(Some(&[]))?;
         let concept_map: HashMap<String, ConceptState> =
             self.get_config_default(CONCEPTS_CONFIG_KEY);
         let ids = self.search_cards(SearchNode::from_tag_name(QUESTION_TAG), SortMode::NoOrder)?;
@@ -129,21 +135,14 @@ impl Collection {
                     k
                 }
             };
+            // Smooth half-life decay on days-since-last-practice (day-granular →
+            // identical across synced devices; no cliff for low-stability
+            // concepts). extra_seconds lets callers project into the future.
             let gate = match concept_map.get(&key) {
                 Some(s) if s.seen => {
-                    let elapsed_days = (today - s.last_day).max(0) as u32;
-                    let elapsed_seconds = elapsed_days
-                        .saturating_mul(86_400)
-                        .saturating_add(extra_seconds);
-                    let r = fsrs.current_retrievability_seconds(
-                        MemoryState {
-                            stability: s.stability,
-                            difficulty: s.difficulty,
-                        },
-                        elapsed_seconds,
-                        FSRS5_DEFAULT_DECAY,
-                    );
-                    (r / DESIRED_RETENTION).clamp(0.0, 1.0)
+                    let days_since =
+                        (today - s.last_day).max(0) as f32 + (extra_seconds as f32 / 86_400.0);
+                    0.5f32.powf(days_since / RETENTION_HALF_LIFE_DAYS).clamp(0.0, 1.0)
                 }
                 _ => 1.0,
             };
