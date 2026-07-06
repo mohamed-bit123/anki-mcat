@@ -653,6 +653,14 @@ class SpeedrunDialog(QDialog):
         self.readiness_card.set_range(s.readiness)
         self._update_exam_label()
 
+    def changeEvent(self, event: QEvent) -> None:
+        # Recompute when the panel regains focus, so scores are never stale after
+        # a sync (which may have run while this window was in the background) or
+        # after the day rolls over. Scores are recomputed from the collection.
+        if event.type() == QEvent.Type.ActivationChange and self.isActiveWindow():
+            self.refresh_scores()
+        super().changeEvent(event)
+
     def on_record_calibration(self) -> None:
         """Log a real full-length practice-test outcome to calibrate Readiness.
 
