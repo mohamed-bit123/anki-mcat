@@ -71,9 +71,10 @@ pub(crate) fn card_retrievability(card: &Card, timing: &SchedTimingToday) -> f32
     card_retrievability_at(card, timing, 0)
 }
 
-/// Retrievability `extra_seconds` into the future (0 = now), assuming no further
-/// review. Projecting to the exam date is how *storage strength* (FSRS
-/// stability) enters the scores: durable memories stay high, fragile ones decay.
+/// Retrievability `extra_seconds` into the future (0 = now), assuming no
+/// further review. Projecting to the exam date is how *storage strength* (FSRS
+/// stability) enters the scores: durable memories stay high, fragile ones
+/// decay.
 pub(crate) fn card_retrievability_at(
     card: &Card,
     timing: &SchedTimingToday,
