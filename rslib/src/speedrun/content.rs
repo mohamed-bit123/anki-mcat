@@ -368,6 +368,9 @@ impl Collection {
         deck_names: &mut HashMap<DeckId, String>,
     ) -> Result<PerformanceScore> {
         let today = timing.days_elapsed as i64;
+        // Current applied-retention gate per topic (memory-gates Performance so
+        // it declines as concepts are forgotten).
+        let retention = self.speedrun_topic_retention(0)?;
         let ids = self.search_cards(SearchNode::from_tag_name(QUESTION_TAG), SortMode::NoOrder)?;
         let mut attempts = Vec::new();
         // Every distinct question topic (subdeck) in the bank — including ones
@@ -380,6 +383,7 @@ impl Collection {
             };
             let points = self.topic_points_for_deck(card.deck_id, topic_points, deck_names)?;
             let topic_id = card.deck_id.0 as u32;
+            let gate = retention.get(&card.deck_id).copied().unwrap_or(1.0);
             all_topics.insert(topic_id);
             for (day, correct) in parse_attempts(&card.custom_data) {
                 attempts.push(QuestionAttempt {
@@ -388,6 +392,7 @@ impl Collection {
                     topic_points: points,
                     difficulty: 0.5,
                     age_days: (today - day).max(0) as f32,
+                    retention: gate,
                 });
             }
         }

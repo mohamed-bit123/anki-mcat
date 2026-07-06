@@ -95,6 +95,63 @@ fn deck_leaf(human_name: &str) -> &str {
 }
 
 impl Collection {
+    /// Current applied-retention gate per question deck, 0..=1: the deck's
+    /// concept FSRS retrievability ÷ desired retention (clamped). Memory-gates
+    /// the Performance score so it declines as concepts are forgotten. Decks
+    /// whose concept is unseen default to 1.0 (their attempts, if any, are
+    /// fresh). Optionally projects `extra_seconds` into the future (for the
+    /// exam-day view); pass 0 for "now".
+    pub(crate) fn speedrun_topic_retention(
+        &mut self,
+        extra_seconds: u32,
+    ) -> Result<HashMap<DeckId, f32>> {
+        let timing = self.timing_today()?;
+        let today = timing.days_elapsed as i64;
+        let fsrs = FSRS::new(Some(&[]))?;
+        let concept_map: HashMap<String, ConceptState> =
+            self.get_config_default(CONCEPTS_CONFIG_KEY);
+        let ids = self.search_cards(SearchNode::from_tag_name(QUESTION_TAG), SortMode::NoOrder)?;
+        let mut out: HashMap<DeckId, f32> = HashMap::new();
+        let mut key_cache: HashMap<DeckId, String> = HashMap::new();
+        for id in ids {
+            let card = match self.storage.get_card(id)? {
+                Some(c) => c,
+                None => continue,
+            };
+            if out.contains_key(&card.deck_id) {
+                continue;
+            }
+            let key = match key_cache.get(&card.deck_id) {
+                Some(k) => k.clone(),
+                None => {
+                    let (k, _) = self.concept_for_deck(card.deck_id)?;
+                    key_cache.insert(card.deck_id, k.clone());
+                    k
+                }
+            };
+            let gate = match concept_map.get(&key) {
+                Some(s) if s.seen => {
+                    let elapsed_days = (today - s.last_day).max(0) as u32;
+                    let elapsed_seconds = elapsed_days
+                        .saturating_mul(86_400)
+                        .saturating_add(extra_seconds);
+                    let r = fsrs.current_retrievability_seconds(
+                        MemoryState {
+                            stability: s.stability,
+                            difficulty: s.difficulty,
+                        },
+                        elapsed_seconds,
+                        FSRS5_DEFAULT_DECAY,
+                    );
+                    (r / DESIRED_RETENTION).clamp(0.0, 1.0)
+                }
+                _ => 1.0,
+            };
+            out.insert(card.deck_id, gate);
+        }
+        Ok(out)
+    }
+
     /// Updates the FSRS memory state for the concept a question belongs to,
     /// from one graded answer. Called by
     /// [`Collection::speedrun_record_attempt`].

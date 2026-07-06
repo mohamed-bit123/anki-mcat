@@ -131,6 +131,12 @@ pub struct QuestionAttempt {
     pub difficulty: f32,
     /// How long ago the attempt happened, in days (>= 0).
     pub age_days: f32,
+    /// Current applied-retention gate, 0..=1: the concept's FSRS retrievability
+    /// ÷ desired retention (clamped). It scales the evidence of a *correct*
+    /// answer so Performance declines as the underlying concept is forgotten —
+    /// you can't apply what you can no longer retrieve (Willingham/Bjork). 1.0
+    /// = freshly practiced (no discount).
+    pub retention: f32,
 }
 
 /// A past projection checked against a real full-length practice-test score.
@@ -318,8 +324,13 @@ pub fn performance_score(
         let topic_w = if topic_w == 0.0 { 1.0 } else { topic_w };
         let w = recency * topic_w;
         weight_sum += w;
+        // Memory-gate: a past correct answer only counts toward *current* applied
+        // ability to the extent you still retain the concept. Freshly practiced →
+        // retention ≈ 1 (full credit); forgotten → the credit (and so Performance)
+        // decays. A wrong answer stays 0 regardless. This is why Performance
+        // declines with disuse, not just Memory.
         if a.correct {
-            weighted_correct += w;
+            weighted_correct += w * (a.retention.clamp(0.0, 1.0) as f64);
         }
     }
     let acc = if weight_sum > 0.0 {
@@ -372,35 +383,32 @@ pub fn readiness_score(
         }
     };
 
-    // Memory acts as a ceiling factor in [0.8, 1.0]. With an exam date we use a
-    // 50/50 blend of recall-now and projected-recall-on-exam-day, so storage
-    // strength (durability) enters the score; without one we use recall now.
-    // `durability_gap` = how much recall is expected to decay by the exam.
-    let (ceiling_frac, durability_gap, mem_known) = match memory.value {
-        Some(m) => {
-            let now = (m as f64 / 100.0).clamp(0.0, 1.0);
-            match memory.projected_recall {
-                Some(p) => {
-                    let hold = (p as f64 / 100.0).clamp(0.0, 1.0);
-                    (0.5 * now + 0.5 * hold, (now - hold).max(0.0), true)
-                }
-                None => (now, 0.0, true),
-            }
-        }
-        None => (0.9, 0.0, false),
-    };
-    let mem_mult = 0.8 + 0.2 * ceiling_frac;
+    // No separate memory ceiling: current retention already flows into
+    // Performance (memory-gated), so multiplying by memory again would
+    // double-count it. Memory enters Readiness only through (a) Performance and
+    // (b) the exam projection below.
+    let mem_known = memory.value.is_some();
 
-    let effective_pct = (perf_pct * mem_mult).clamp(0.0, 1.0);
+    // Exam projection: scale Performance by the fraction of retention expected
+    // to survive to the exam date (`projected_recall / recall_now`, a flashcard-
+    // memory proxy). Fragile knowledge that won't hold to test day lowers the
+    // projection and — via `durability_gap` — widens the range. No exam → 1.0.
+    let survival = match (days_to_exam, memory.value, memory.projected_recall) {
+        (Some(_), Some(v), Some(p)) if v > 0.0 => (p as f64 / v as f64).clamp(0.0, 1.0),
+        _ => 1.0,
+    };
+    let durability_gap = perf_pct * (1.0 - survival);
+
+    let effective_pct = (perf_pct * survival).clamp(0.0, 1.0);
     let projected = map_pct_to_score(effective_pct, cfg);
 
     // Range: Wilson interval on the accuracy (sample size = raw attempts),
-    // scaled by the same memory multiplier, mapped to score, then inflated by
+    // scaled by the same survival factor, mapped to score, then inflated by
     // calibration error (or a default when uncalibrated) and by the durability
     // gap (fragile knowledge → less certain it holds to test day).
     let (lo_pct, hi_pct) = wilson_interval(perf_pct, performance.attempts, cfg.interval_z);
-    let mut low = map_pct_to_score((lo_pct * mem_mult).clamp(0.0, 1.0), cfg);
-    let mut high = map_pct_to_score((hi_pct * mem_mult).clamp(0.0, 1.0), cfg);
+    let mut low = map_pct_to_score((lo_pct * survival).clamp(0.0, 1.0), cfg);
+    let mut high = map_pct_to_score((hi_pct * survival).clamp(0.0, 1.0), cfg);
 
     let extra = calibration_uncertainty(calibration, cfg)
         + durability_gap * (cfg.map_high_score - cfg.map_low_score);
@@ -521,12 +529,18 @@ mod test {
     }
 
     fn attempt(correct: bool, topic: u32, age_days: f32) -> QuestionAttempt {
+        attempt_ret(correct, topic, age_days, 1.0)
+    }
+
+    /// Like `attempt`, but with an explicit current-retention gate (0..=1).
+    fn attempt_ret(correct: bool, topic: u32, age_days: f32, retention: f32) -> QuestionAttempt {
         QuestionAttempt {
             correct,
             topic_id: topic,
             topic_points: 1.0,
             difficulty: 0.5,
             age_days,
+            retention,
         }
     }
 
@@ -698,32 +712,47 @@ mod test {
     }
 
     #[test]
-    fn weaker_memory_lowers_readiness() {
+    fn forgetting_lowers_performance_and_readiness() {
+        // Same answers, same memory; the only difference is current retention of
+        // the tested concepts. Forgetting (low retention) must drop BOTH the
+        // Performance score and the Readiness it feeds — you can't apply what you
+        // can no longer retrieve.
         let cfg = ScoreConfig::default();
-        let perf = performance_score(&many_attempts(60, 42, 6), 6, &cfg); // 70%
-        let strong_mem = memory_score(
+        let mem = memory_score(
             &(0..50)
-                .map(|i| card(0.98, 1.0, i % 10, true))
+                .map(|i| card(0.9, 1.0, i % 10, true))
                 .collect::<Vec<_>>(),
             &cfg,
             false,
         );
-        let weak_mem = memory_score(
-            &(0..50)
-                .map(|i| card(0.40, 1.0, i % 10, true))
-                .collect::<Vec<_>>(),
-            &cfg,
-            false,
+
+        let make = |retention: f32| -> Vec<QuestionAttempt> {
+            let mut v = vec![];
+            for t in 0..6 {
+                for i in 0..10 {
+                    v.push(attempt_ret(i < 7, t, 0.0, retention)); // 70% correct
+                }
+            }
+            v
+        };
+        let fresh = performance_score(&make(1.0), 6, &cfg);
+        let stale = performance_score(&make(0.4), 6, &cfg); // concepts half-forgotten
+        assert!(
+            fresh.value.unwrap() > stale.value.unwrap(),
+            "forgetting should lower Performance: fresh {} vs stale {}",
+            fresh.value.unwrap(),
+            stale.value.unwrap()
         );
-        let r_strong = readiness_score(&strong_mem, &perf, &[], &cfg, None)
+
+        let r_fresh = readiness_score(&mem, &fresh, &[], &cfg, None)
             .projected
             .unwrap();
-        let r_weak = readiness_score(&weak_mem, &perf, &[], &cfg, None)
+        let r_stale = readiness_score(&mem, &stale, &[], &cfg, None)
             .projected
             .unwrap();
         assert!(
-            r_strong > r_weak,
-            "strong memory {r_strong} should project higher than weak {r_weak}"
+            r_fresh > r_stale,
+            "forgetting should lower Readiness too: fresh {r_fresh} vs stale {r_stale}"
         );
     }
 
