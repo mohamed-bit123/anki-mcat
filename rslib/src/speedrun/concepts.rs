@@ -47,7 +47,8 @@ pub const DESIRED_RETENTION: f32 = 0.9;
 /// 0.5 for every this-many days since it was last practiced. Deliberately a
 /// smooth exponential (not the raw FSRS curve, which collapses within hours for
 /// low-stability concepts) so Performance is steady and — being day-granular —
-/// identical across synced devices instead of cliff-jumping near a day rollover.
+/// identical across synced devices instead of cliff-jumping near a day
+/// rollover.
 pub const RETENTION_HALF_LIFE_DAYS: f32 = 21.0;
 /// A gentle daily floor: below this you're unlikely to make steady progress.
 pub const RECOMMENDED_DAILY_MIN: u32 = 20;
@@ -142,7 +143,9 @@ impl Collection {
                 Some(s) if s.seen => {
                     let days_since =
                         (today - s.last_day).max(0) as f32 + (extra_seconds as f32 / 86_400.0);
-                    0.5f32.powf(days_since / RETENTION_HALF_LIFE_DAYS).clamp(0.0, 1.0)
+                    0.5f32
+                        .powf(days_since / RETENTION_HALF_LIFE_DAYS)
+                        .clamp(0.0, 1.0)
                 }
                 _ => 1.0,
             };
