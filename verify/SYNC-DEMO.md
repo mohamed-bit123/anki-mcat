@@ -38,6 +38,57 @@ on `Ctrl-C`, pulled to `verify/artifacts/sync-demo-phone.mp4`. Record the
 desktop half with your normal screen recorder (macOS `⇧⌘5`) so the demo video
 shows both sides.
 
+## Step-by-step: test sync (desktop ⇄ Android emulator)
+
+The exact recipe, including the gotchas we hit.
+
+1. **Start the server** and leave it running:
+
+   ```bash
+   cd /path/to/anki-mcat && verify/sync_demo.sh
+   ```
+
+   Wait for `sync server healthy on port 27713`. It serves **both** collection
+   and media sync at the same base URL; login is `demo` / `demo`.
+
+2. **Desktop** → **Tools → Preferences → Syncing → Self-hosted sync server** =
+   `http://127.0.0.1:27713/`. Preferences has **no Save button** — just **close
+   the window** to persist. Then click **Sync** (or press `Y`), log in
+   `demo` / `demo`, and on the first sync choose **Upload** (seeds the server).
+
+3. **Phone / emulator** → **Settings → Sync → Custom sync server**, set the
+   single **base URL** = `http://10.0.2.2:27713/` (the emulator's alias for the
+   host; a real phone on the same Wi-Fi uses `http://<your-Mac-LAN-IP>:27713/`).
+   There is **no separate media-sync-URL field** in AnkiDroid — the one base URL
+   covers collection _and_ media, so you're not missing anything. Then **Sync**,
+   log in `demo` / `demo`, and on the first sync choose **Download** (pulls the
+   desktop's collection down).
+
+4. **The demo loop:** answer a practice question on the phone → tap **Sync** →
+   tap **Sync** on the desktop → reopen **MCAT Speedrun** on each. The due
+   counts and all three scores match.
+
+### Gotchas (read these)
+
+- **"Keep AnkiWeb or AnkiDroid?"** appears when the two collections diverged and
+  a _full_ one-way sync is forced — it **overwrites** the other side, it does
+  not merge. Keep the side with the work you want: **AnkiWeb** = the server
+  (what the desktop uploaded, i.e. download to the phone); **AnkiDroid** = the
+  phone's local copy (upload it, then Download on desktop). After this one-time
+  reconcile, later syncs merge both ways automatically.
+- **Scores are recomputed from the synced data, never stored** — so once both
+  sides hold the same data they compute _identical_ Memory/Performance/Readiness.
+  The panel recomputes when it (re)opens; if a number looks stale after a sync,
+  just leave and re-enter the panel.
+- **Both apps must run the same build.** An older APK ships an older engine and
+  will compute _different_ scores from identical data (and won't show newer UI).
+  If the phone disagrees with the desktop and the data is in sync, reinstall the
+  current APK (see `speedrun/TESTING.md`). On an emulator that boots from a
+  snapshot, reinstall after each cold boot or launch with `-no-snapshot`.
+- **Server must be running.** Connection errors almost always mean the
+  `verify/sync_demo.sh` terminal was closed, or the URL is missing the trailing
+  `/`.
+
 ## Option B — AnkiWeb
 
 Create one account at <https://ankiweb.net/account/register>, then log into it
